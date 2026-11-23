@@ -11,7 +11,7 @@ import {
 import { guidanceCandidates } from "@/lib/feedback/assess";
 import type { Guidance } from "@/lib/feedback/messages";
 import { createSelector } from "@/lib/feedback/selector";
-import { playWarningBeep } from "@/lib/audio/beep";
+import { playCorrectionChime, playWarningBeep } from "@/lib/audio/beep";
 import { measureBrightness } from "@/lib/pose/brightness";
 import { checkConfidence } from "@/lib/pose/confidence";
 import { loadLandmarker } from "@/lib/pose/landmarker";
@@ -107,10 +107,14 @@ export function usePoseTracking({
             const dangerActive = active && !dark;
             if (beep && !dark) playWarningBeep();
 
-            const { current } = selector.select(
+            const { current, emitted } = selector.select(
               guidanceCandidates({ dark, bodyVisible: ok, level, dangerActive, judging }),
               now,
             );
+            // 교정 안내가 새로 나오는 순간 부드러운 알림음을 한 번 낸다(같은 안내는 3초 안 반복 없음)
+            if (emitted && judging && current?.id === "correct" && !dark) {
+              playCorrectionChime();
+            }
             setGuidance((prev) => (prev?.id === current?.id ? prev : current));
 
             // 뼈대 점·선 그리기

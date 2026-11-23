@@ -38,3 +38,24 @@ export function playWarningBeep(): void {
     osc.stop(start + offset + 0.22);
   }
 }
+
+/**
+ * 교정 안내용 부드러운 알림음(낮고 짧은 한 번). 위험 경고음(높고 2번)과 구별된다.
+ * 성공 기준 "화면·경고음으로 안내"를 교정 안내에도 적용하되, 놀라지 않게 작게 낸다.
+ */
+export function playCorrectionChime(): void {
+  if (!context) return;
+  if (context.state === "suspended") void context.resume();
+  if (context.state !== "running") return;
+  const start = context.currentTime;
+  const osc = context.createOscillator();
+  const gain = context.createGain();
+  osc.type = "sine";
+  osc.frequency.value = 523; // 도
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(0.25, start + 0.03);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+  osc.connect(gain).connect(context.destination);
+  osc.start(start);
+  osc.stop(start + 0.37);
+}
