@@ -4,7 +4,8 @@
 // 그리고 허용되면 카메라 영상을 거울처럼 보여 주는 것까지(PLAN 3·4번).
 // Design Ref: §7 — 영상은 화면에만 띄우고 저장·전송하지 않는다. 화면을 나가면 카메라를 끈다.
 import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import DebugPanel, { type DebugInfo } from "@/components/DebugPanel";
 import GuidanceBanner from "@/components/GuidanceBanner";
 import { unlockAudio } from "@/lib/audio/beep";
 import { guidanceCandidates } from "@/lib/feedback/assess";
@@ -14,6 +15,7 @@ import { measureBrightness } from "@/lib/pose/brightness";
 import { checkConfidence } from "@/lib/pose/confidence";
 import { BRIGHTNESS_INTERVAL_MS, MIN_BRIGHTNESS } from "@/lib/squat/thresholds";
 import { loadLandmarker } from "@/lib/pose/landmarker";
+import { extractLeg, kneeForwardRatio } from "@/lib/squat/metrics";
 
 type Status =
   | "idle" // 아직 요청 전
@@ -47,6 +49,18 @@ export default function CameraScreen({ onBack }: Props) {
   const streamRef = useRef<MediaStream | null>(null);
   const [model, setModel] = useState<ModelState>("loading");
   const [guidance, setGuidance] = useState<Guidance | null>(null);
+  // 주소에 ?debug 가 있을 때만 개발용 숫자판을 보여 준다(서버에서는 항상 꺼짐)
+  const debugOn = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).has("debug"),
+    () => false,
+  );
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  const resetDebugRef = useRef(false);
+  const debugOnRef = useRef(false);
+  useEffect(() => {
+    debugOnRef.current = debugOn;
+  }, [debugOn]);
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -89,6 +103,10 @@ export default function CameraScreen({ onBack }: Props) {
         let lastTime = -1;
         let lastBrightnessAt = -Infinity;
         let dark = false;
+        let brightnessValue: number | null = null;
+        let maxRatio: number | null = null;
+        let minRatio: number | null = null;
+        let lastDebugAt = 0;
         const selector = createSelector();
         const loop = () => {
           const video = videoRef.current;
@@ -104,10 +122,36 @@ export default function CameraScreen({ onBack }: Props) {
             if (now - lastBrightnessAt >= BRIGHTNESS_INTERVAL_MS) {
               lastBrightnessAt = now;
               const brightness = measureBrightness(video);
-              if (brightness !== null) dark = brightness < MIN_BRIGHTNESS;
+              if (brightness !== null) {
+                dark = brightness < MIN_BRIGHTNESS;
+                brightnessValue = brightness;
+              }
             }
             const result = landmarker.detectForVideo(video, now);
-            const { ok } = checkConfidence(result.landmarks[0]);
+            const { ok, side } = checkConfidence(result.landmarks[0]);
+            // 개발용: 무릎 전방 이동 비율(몸이 잘 보일 때만). 0.1초마다 화면 숫자를 갱신한다
+            if (debugOnRef.current && now - lastDebugAt >= 100) {
+              lastDebugAt = now;
+              if (resetDebugRef.current) {
+                maxRatio = null;
+                minRatio = null;
+                resetDebugRef.current = false;
+              }
+              const leg = ok && side ? extractLeg(result.landmarks[0], side) : null;
+              const ratio = leg ? kneeForwardRatio(leg, video.videoWidth / video.videoHeight) : null;
+              if (ratio !== null) {
+                maxRatio = maxRatio === null ? ratio : Math.max(maxRatio, ratio);
+                minRatio = minRatio === null ? ratio : Math.min(minRatio, ratio);
+              }
+              setDebugInfo({
+                ratio,
+                max: maxRatio,
+                min: minRatio,
+                brightness: brightnessValue,
+                side,
+                bodyVisible: ok,
+              });
+            }
             const { current } = selector.select(
               guidanceCandidates({ dark, bodyVisible: ok }),
               now,
@@ -215,6 +259,14 @@ export default function CameraScreen({ onBack }: Props) {
               className="absolute inset-0 h-full w-full object-cover"
             />
           </div>
+          {debugOn && (
+            <DebugPanel
+              info={debugInfo}
+              onReset={() => {
+                resetDebugRef.current = true;
+              }}
+            />
+          )}
           <GuidanceBanner
             guidance={
               model === "loading"
