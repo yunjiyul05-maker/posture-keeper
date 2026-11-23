@@ -1,9 +1,9 @@
 "use client";
 
-// Design Ref: §2.3 — ② 카메라 준비 화면. 이번 작업(PLAN 3번)은 권한 요청과
-// 거부·카메라 없음·보안 연결 아님 안내까지다. 영상 표시는 PLAN 4번에서 만든다.
-// Design Ref: §7 — 카메라는 허용 여부만 확인하고 바로 끈다(영상을 받아 두지 않는다).
-import { useState } from "react";
+// Design Ref: §2.3 — ② 카메라 준비 화면. 권한 요청, 거부·카메라 없음·보안 연결 아님 안내,
+// 그리고 허용되면 카메라 영상을 거울처럼 보여 주는 것까지(PLAN 3·4번).
+// Design Ref: §7 — 영상은 화면에만 띄우고 저장·전송하지 않는다. 화면을 나가면 카메라를 끈다.
+import { useEffect, useRef, useState } from "react";
 
 type Status =
   | "idle" // 아직 요청 전
@@ -30,6 +30,35 @@ function isSafari(): boolean {
 
 export default function CameraScreen({ onBack }: Props) {
   const [status, setStatus] = useState<Status>("idle");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }
+
+  // 화면을 떠나거나(처음으로·탭 닫기) 앱 화면이 가려지면 카메라를 바로 끈다
+  useEffect(() => {
+    function onHidden() {
+      if (document.visibilityState === "hidden" && streamRef.current) {
+        stopCamera();
+        setStatus("idle");
+      }
+    }
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      document.removeEventListener("visibilitychange", onHidden);
+      stopCamera();
+    };
+  }, []);
+
+  // 허용되어 영상 태그가 화면에 생기면 카메라 영상을 연결한다
+  useEffect(() => {
+    if (status === "granted" && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [status]);
 
   async function requestCamera() {
     // 보안 연결(https, 또는 localhost)이 아니면 브라우저가 카메라 기능을 아예 주지 않는다
@@ -44,8 +73,8 @@ export default function CameraScreen({ onBack }: Props) {
         video: { facingMode: "user" }, // 화면을 보며 운동하므로 전면 카메라
         audio: false,
       });
-      // 허용 여부만 확인하고 즉시 끈다. 영상은 PLAN 4번에서 필요할 때 다시 켠다.
-      stream.getTracks().forEach((track) => track.stop());
+      stopCamera(); // 다시 시도로 이전 영상이 남아 있으면 먼저 끈다
+      streamRef.current = stream;
       setStatus("granted");
     } catch (error) {
       const name = error instanceof DOMException ? error.name : "";
@@ -86,11 +115,18 @@ export default function CameraScreen({ onBack }: Props) {
 
       {status === "granted" && (
         <>
+          {/* iPhone은 playsInline·muted가 없으면 전체 화면으로 바뀌거나 재생되지 않는다.
+              -scale-x-100은 화면 표시만 거울처럼 좌우 반전한다. */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            aria-label="내 카메라 영상"
+            className="aspect-[3/4] w-full -scale-x-100 rounded-2xl bg-black object-cover"
+          />
           <p className="text-2xl font-semibold leading-relaxed">
-            카메라를 쓸 수 있어요.
-          </p>
-          <p className="text-xl text-zinc-600 dark:text-zinc-300">
-            카메라 영상 보기는 다음 작업에서 만들어요.
+            폰을 옆에 세워 주세요
           </p>
         </>
       )}
@@ -164,7 +200,14 @@ export default function CameraScreen({ onBack }: Props) {
         </>
       )}
 
-      <button type="button" onClick={onBack} className={secondary}>
+      <button
+        type="button"
+        onClick={() => {
+          stopCamera();
+          onBack();
+        }}
+        className={secondary}
+      >
         처음으로
       </button>
     </section>
