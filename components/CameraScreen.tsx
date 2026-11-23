@@ -5,6 +5,9 @@
 // Design Ref: §7 — 영상은 화면에만 띄우고 저장·전송하지 않는다. 화면을 나가면 카메라를 끈다.
 import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { useEffect, useRef, useState } from "react";
+import GuidanceBanner from "@/components/GuidanceBanner";
+import { unlockAudio } from "@/lib/audio/beep";
+import { GUIDANCE } from "@/lib/feedback/messages";
 import { loadLandmarker } from "@/lib/pose/landmarker";
 
 type Status =
@@ -116,6 +119,7 @@ export default function CameraScreen({ onBack }: Props) {
   }, [status]);
 
   async function requestCamera() {
+    unlockAudio(); // 버튼을 누른 이 순간에 소리를 쓸 수 있게 해 둔다
     // 보안 연결(https, 또는 localhost)이 아니면 브라우저가 카메라 기능을 아예 주지 않는다
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setStatus("insecure");
@@ -189,11 +193,15 @@ export default function CameraScreen({ onBack }: Props) {
               className="absolute inset-0 h-full w-full object-cover"
             />
           </div>
-          <p className="text-2xl font-semibold leading-relaxed">
-            {model === "loading" && "준비 중이에요"}
-            {model === "ready" && "폰을 옆에 세워 주세요"}
-            {model === "error" && "인터넷을 확인해 주세요"}
-          </p>
+          <GuidanceBanner
+            guidance={
+              model === "loading"
+                ? GUIDANCE.loading
+                : model === "error"
+                  ? GUIDANCE.offline
+                  : GUIDANCE.cameraReady
+            }
+          />
         </>
       )}
 
