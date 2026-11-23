@@ -1,15 +1,34 @@
-// Design Ref: §2 — 앱 첫 화면. 이번 작업(PLAN 1번)은 큰 글씨 기본 틀과 첫 화면 뼈대까지만 만든다.
-// 시작 전 안내(②)와 "확인해야 시작" 동작은 PLAN 2번에서 이어서 만든다.
+"use client";
+
+// Design Ref: §2.5 — 화면 전환 담당. ① 시작 전 안내 → ② 카메라 준비 → ③ 운동.
+// 이번 작업(PLAN 2번)은 ①과 "확인해야 시작" 동작까지다. ②는 PLAN 3번에서 만든다.
+import { useState } from "react";
+import DisclaimerScreen from "@/components/DisclaimerScreen";
+
+type Screen = "disclaimer" | "camera";
+
 export default function Home() {
+  const [screen, setScreen] = useState<Screen>("disclaimer");
+
   return (
-    <main className="mx-auto break-keep flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-12">
-      <h1 className="text-5xl font-bold tracking-tight">자세지킴</h1>
-      <p className="text-2xl leading-relaxed">
-        스마트폰 카메라로 스쿼트 자세를 바로 알려 드려요.
-      </p>
-      <p className="text-xl text-zinc-600 dark:text-zinc-300">
-        영상은 저장되거나 전송되지 않아요.
-      </p>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center break-keep px-6 py-10">
+      {screen === "disclaimer" && (
+        <DisclaimerScreen onStart={() => setScreen("camera")} />
+      )}
+
+      {/* ② 카메라 준비 화면 자리 표시 (PLAN 3번에서 교체) */}
+      {screen === "camera" && (
+        <section className="flex flex-col gap-6">
+          <p className="text-2xl font-semibold">카메라 준비 화면은 다음 작업에서 만들어요.</p>
+          <button
+            type="button"
+            onClick={() => setScreen("disclaimer")}
+            className="min-h-16 rounded-2xl border-2 border-blue-700 px-6 text-2xl font-bold text-blue-700 dark:border-blue-300 dark:text-blue-300"
+          >
+            처음으로
+          </button>
+        </section>
+      )}
     </main>
   );
 }
