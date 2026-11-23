@@ -17,6 +17,7 @@ import { createSelector } from "@/lib/feedback/selector";
 import { playWarningBeep } from "@/lib/audio/beep";
 import { measureBrightness } from "@/lib/pose/brightness";
 import { checkConfidence } from "@/lib/pose/confidence";
+import { createRollingStats, estimateWarningDelay } from "@/lib/perf/stats";
 import { loadLandmarker } from "@/lib/pose/landmarker";
 import { createDangerTracker } from "@/lib/squat/danger";
 import { classify } from "@/lib/squat/judge";
@@ -78,6 +79,10 @@ export function usePoseTracking({
         let lastDebugAt = 0;
         const selector = createSelector();
         const danger = createDangerTracker();
+        // 응답 속도 측정: 프레임 간격과 한 프레임 처리 시간(관절 인식~그리기)
+        const processing = createRollingStats();
+        const interval = createRollingStats();
+        let lastFrameAt: number | null = null;
 
         const loop = () => {
           const video = videoRef.current;
@@ -105,6 +110,8 @@ export function usePoseTracking({
               }
             }
 
+            if (lastFrameAt !== null) interval.add(now - lastFrameAt);
+            lastFrameAt = now;
             const result = landmarker.detectForVideo(video, now);
             const joints = result.landmarks[0];
             const { ok, side } = checkConfidence(joints);
@@ -141,6 +148,12 @@ export function usePoseTracking({
                 brightness: brightnessValue,
                 side,
                 bodyVisible: ok,
+                processingAvg: processing.average(),
+                processingMax: processing.max(),
+                warningDelay: estimateWarningDelay(
+                  interval.average(),
+                  processing.average(),
+                ),
               });
             }
 
@@ -163,6 +176,7 @@ export function usePoseTracking({
                 drawing.drawLandmarks(points, { color: "#ffffff", radius: 4 });
               }
             }
+            processing.add(performance.now() - now);
           }
           frame = requestAnimationFrame(loop);
         };

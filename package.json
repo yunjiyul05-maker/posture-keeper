@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "node scripts/copy-mediapipe-wasm.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:privacy": "node scripts/check-no-upload.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.2.3",

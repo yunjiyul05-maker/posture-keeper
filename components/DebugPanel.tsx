@@ -10,7 +10,15 @@ export type DebugInfo = {
   brightness: number | null;
   side: "left" | "right" | null;
   bodyVisible: boolean;
+  /** 한 프레임 처리 시간(밀리초): 최근 평균·최댓값 */
+  processingAvg: number | null;
+  processingMax: number | null;
+  /** 위험 확정 뒤 경고가 늦어지는 시간 추정(밀리초) */
+  warningDelay: number | null;
 };
+
+/** PRD 목표: 위험이 0.3초 이어진 뒤 0.5초 이내에 경고 */
+const WARNING_DELAY_LIMIT_MS = 500;
 
 type Props = {
   info: DebugInfo | null;
@@ -38,6 +46,19 @@ export default function DebugPanel({ info, onReset }: Props) {
         밝기 {fmt(info?.brightness ?? null, 0)} · 카메라 쪽 다리{" "}
         {info?.side === "left" ? "왼쪽" : info?.side === "right" ? "오른쪽" : "—"}{" "}
         · 몸 {info?.bodyVisible ? "잘 보임" : "안 보임"}
+      </p>
+      <p className="text-lg tabular-nums">
+        처리 시간 평균 {fmt(info?.processingAvg ?? null, 0)}ms · 최대{" "}
+        {fmt(info?.processingMax ?? null, 0)}ms
+      </p>
+      <p className="text-lg font-semibold tabular-nums">
+        위험 경고 지연 약 {fmt(info?.warningDelay ?? null, 0)}ms (목표{" "}
+        {WARNING_DELAY_LIMIT_MS}ms 이하){" "}
+        {info?.warningDelay == null
+          ? ""
+          : info.warningDelay <= WARNING_DELAY_LIMIT_MS
+            ? "✅ 통과"
+            : "❌ 느림"}
       </p>
       <button
         type="button"
