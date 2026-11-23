@@ -1,23 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #eef4fc; /* 아주 연한 푸른 회색 */
+  --foreground: #0b1b33; /* 짙은 남색 */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   /* 한글이 잘 보이는 기기 기본 글꼴 (외부 글꼴을 내려받지 않는다) */
-  --font-sans: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
     system-ui, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 /* 큰 글씨 기본 틀 (Design Ref: §2.1 — 본문 20px 이상).
@@ -31,4 +24,122 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   line-height: 1.6;
+}
+
+/* 애플(iOS) 느낌 디자인 — 푸른 계열 */
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(70% 38% at 85% 0%, rgba(90, 170, 255, 0.45), transparent 70%),
+    radial-gradient(60% 38% at 0% 45%, rgba(130, 150, 255, 0.28), transparent 70%),
+    radial-gradient(80% 40% at 100% 100%, rgba(100, 210, 255, 0.4), transparent 70%),
+    linear-gradient(180deg, #f4f8ff, #e6effb);
+  background-attachment: fixed;
+}
+
+/* 큰 제목 (iOS Large Title) */
+.large-title {
+  font-size: 2.1rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* 유리 카드: 반투명 흰색 + 흐림 + 안쪽 밝은 테두리 + 얇은 그림자 */
+.glass {
+  background: rgba(255, 255, 255, 0.66);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-radius: 26px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.85),
+    0 0 0 0.5px rgba(10, 60, 140, 0.12),
+    0 10px 30px rgba(20, 70, 160, 0.12);
+}
+
+/* 안내 강조 칸: 연한 파랑 */
+.callout {
+  background: rgba(10, 99, 229, 0.1);
+  border-radius: 20px;
+  color: #0b1b33;
+}
+
+/* iOS식 묶음 목록: 줄 사이 가는 구분선 */
+.grouped > li {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+}
+.grouped > li + li {
+  border-top: 0.5px solid rgba(10, 60, 140, 0.18);
+}
+.grouped {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.icon-chip {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.7rem;
+  background: linear-gradient(160deg, #4aa3ff, #0b63e5);
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+/* 큰 버튼: iOS 파랑 (흰 글씨 대비 4.5:1 이상) */
+.btn-primary {
+  background: linear-gradient(180deg, #2a7bf0, #0b5fd9);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(11, 95, 217, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.btn-primary:disabled {
+  background: rgba(60, 90, 140, 0.16);
+  color: #44546e;
+  box-shadow: none;
+}
+.btn-glass {
+  background: rgba(255, 255, 255, 0.72);
+  color: #0a4fb8;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 0 0.5px rgba(10, 60, 140, 0.2);
+}
+
+/* iOS 스위치 (체크박스) */
+.ios-switch {
+  position: relative;
+  flex: none;
+  width: 3.4rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  background: rgba(60, 90, 140, 0.3);
+  transition: background 0.2s;
+}
+.ios-switch::after {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+}
+input:checked + .ios-switch {
+  background: #0b63e5;
+}
+input:checked + .ios-switch::after {
+  transform: translateX(1.3rem);
+}
+input:focus-visible + .ios-switch {
+  outline: 3px solid #0b63e5;
+  outline-offset: 3px;
 }

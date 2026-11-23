@@ -89,17 +89,17 @@ export default function CameraScreen({ onBack }: Props) {
   }
 
   const buttonBase =
-    "min-h-16 rounded-2xl px-6 text-2xl font-bold disabled:cursor-not-allowed disabled:opacity-60";
-  const primary = `${buttonBase} bg-blue-700 text-white enabled:active:bg-blue-900`;
-  const secondary = `${buttonBase} border-2 border-blue-700 text-blue-700 dark:border-blue-300 dark:text-blue-300`;
+    "min-h-16 rounded-2xl px-6 text-2xl font-bold enabled:active:scale-[0.98] disabled:cursor-not-allowed";
+  const primary = `${buttonBase} btn-primary`;
+  const secondary = `${buttonBase} btn-glass`;
 
   return (
-    <section className="flex flex-col gap-6" aria-live="polite">
-      <h1 className="text-4xl font-bold tracking-tight">카메라 준비</h1>
+    <section className="flex flex-col gap-5" aria-live="polite">
+      <h1 className="large-title px-1">카메라 준비</h1>
 
       {(status === "idle" || status === "requesting") && (
         <>
-          <p className="text-2xl leading-relaxed">
+          <p className="glass p-5 text-2xl leading-relaxed">
             몸의 자세를 보려면 카메라가 필요해요. 영상은 저장·전송되지 않아요.
           </p>
           <button
@@ -123,7 +123,7 @@ export default function CameraScreen({ onBack }: Props) {
             playsInline
             muted
             aria-label="내 카메라 영상"
-            className="aspect-[3/4] w-full -scale-x-100 rounded-2xl bg-black object-cover"
+            className="aspect-[3/4] w-full -scale-x-100 rounded-2xl bg-black object-cover shadow-lg"
           />
           <p className="text-2xl font-semibold leading-relaxed">
             폰을 옆에 세워 주세요
@@ -140,7 +140,7 @@ export default function CameraScreen({ onBack }: Props) {
             자세를 알려 드리려면 카메라가 꼭 필요해요. 카메라 없이는 운동을
             시작할 수 없어요.
           </p>
-          <div className="rounded-2xl bg-zinc-100 p-5 text-xl leading-relaxed dark:bg-zinc-800">
+          <div className="glass p-5 text-xl leading-relaxed">
             <p className="mb-2 font-bold">다시 허용하는 방법</p>
             {isSafari() ? (
               <p>
