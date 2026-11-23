@@ -8,7 +8,7 @@ type Props = {
   stream: MediaStream | null;
   videoRef: RefObject<HTMLVideoElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  /** 영상 칸 모양. 준비 화면은 3:4, 운동 화면은 화면을 더 채운다 */
+  /** 영상 칸 크기. 화면 높이에 맞춰 안내 문구가 스크롤 없이 보이게 호출하는 쪽에서 정한다 */
   className?: string;
 };
 
@@ -20,8 +20,8 @@ export default function CameraView({ stream, videoRef, canvasRef, className }: P
 
   return (
     <div
-      className={`relative w-full -scale-x-100 overflow-hidden rounded-2xl bg-black shadow-lg ${
-        className ?? "aspect-[3/4]"
+      className={`relative mx-auto -scale-x-100 overflow-hidden rounded-2xl bg-black shadow-lg ${
+        className ?? "aspect-[3/4] w-full"
       }`}
     >
       {/* iPhone은 playsInline·muted가 없으면 전체 화면으로 바뀌거나 재생되지 않는다 */}

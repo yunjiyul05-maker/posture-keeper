@@ -129,10 +129,12 @@ export default function CameraScreen({ onBack, onStart }: Props) {
 
       {status === "granted" && (
         <div className="flex flex-col gap-5">
+          {/* 영상 높이는 화면 높이에서 제목·안내·버튼 자리(23rem)를 뺀 만큼. 노트북에서도 안내 문구가 스크롤 없이 보인다 */}
           <CameraView
             stream={stream}
             videoRef={videoRef}
             canvasRef={canvasRef}
+            className="aspect-[3/4] h-[max(14rem,calc(100dvh-23rem))] w-auto max-w-full"
           />
           <div className="flex flex-col gap-5">
             <GuidanceBanner

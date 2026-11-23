@@ -46,7 +46,8 @@ export default function WorkoutScreen({ stream, onEnd }: Props) {
         stream={stream}
         videoRef={videoRef}
         canvasRef={canvasRef}
-        className="aspect-[3/4] max-h-[70vh]"
+        // 영상 높이는 화면 높이에서 안내·버튼 자리(18rem)를 뺀 만큼. 안내 문구와 끝내기 버튼이 스크롤 없이 보인다
+        className="aspect-[3/4] h-[max(14rem,calc(100dvh-18rem))] w-auto max-w-full"
       />
       <div className="flex flex-col gap-4">
         <GuidanceBanner
