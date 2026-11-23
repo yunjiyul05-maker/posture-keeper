@@ -17,6 +17,7 @@ import { createSelector } from "@/lib/feedback/selector";
 import { measureBrightness } from "@/lib/pose/brightness";
 import { checkConfidence } from "@/lib/pose/confidence";
 import { loadLandmarker } from "@/lib/pose/landmarker";
+import { classify } from "@/lib/squat/judge";
 import { extractLeg, kneeForwardRatio } from "@/lib/squat/metrics";
 import { BRIGHTNESS_INTERVAL_MS, MIN_BRIGHTNESS } from "@/lib/squat/thresholds";
 
@@ -98,7 +99,14 @@ export function usePoseTracking({ active, videoRef, canvasRef }: Options) {
             const joints = result.landmarks[0];
             const { ok, side } = checkConfidence(joints);
 
-            // 개발용: 무릎 전방 이동 비율(몸이 잘 보일 때만). 0.1초마다 화면 숫자를 갱신한다
+            // 무릎 전방 이동 비율: 몸이 잘 보일 때만 계산한다(안 보이면 판정 중단)
+            const leg = ok && side ? extractLeg(joints, side) : null;
+            const ratio = leg
+              ? kneeForwardRatio(leg, video.videoWidth / video.videoHeight)
+              : null;
+            const level = classify(ratio);
+
+            // 개발용 숫자판: 0.1초마다 화면 숫자를 갱신한다
             if (debugOnRef.current && now - lastDebugAt >= 100) {
               lastDebugAt = now;
               if (resetDebugRef.current) {
@@ -106,10 +114,6 @@ export function usePoseTracking({ active, videoRef, canvasRef }: Options) {
                 minRatio = null;
                 resetDebugRef.current = false;
               }
-              const leg = ok && side ? extractLeg(joints, side) : null;
-              const ratio = leg
-                ? kneeForwardRatio(leg, video.videoWidth / video.videoHeight)
-                : null;
               if (ratio !== null) {
                 maxRatio = maxRatio === null ? ratio : Math.max(maxRatio, ratio);
                 minRatio = minRatio === null ? ratio : Math.min(minRatio, ratio);
@@ -125,7 +129,7 @@ export function usePoseTracking({ active, videoRef, canvasRef }: Options) {
             }
 
             const { current } = selector.select(
-              guidanceCandidates({ dark, bodyVisible: ok }),
+              guidanceCandidates({ dark, bodyVisible: ok, level }),
               now,
             );
             setGuidance((prev) => (prev?.id === current?.id ? prev : current));

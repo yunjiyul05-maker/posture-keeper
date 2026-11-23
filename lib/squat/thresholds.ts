@@ -8,3 +8,15 @@ export const MIN_BRIGHTNESS = 60;
 
 /** 밝기를 다시 재는 간격(밀리초). 매 프레임 재면 낭비라 약 0.5초마다 한다. */
 export const BRIGHTNESS_INTERVAL_MS = 500;
+
+/**
+ * 무릎 전방 이동 비율의 "주의"(교정 안내) 기준. (임시) PLAN 9번에서 시범 측정으로 확정한다.
+ * 확정 전 값이므로 실제 사용자 안내의 근거로 삼지 않는다.
+ */
+export const CAUTION_RATIO = 0.15;
+
+/**
+ * 무릎 전방 이동 비율의 "위험"(경고) 기준. (임시) PLAN 9번에서 확정한다.
+ * PLAN 11번에서 위험 판정에 쓴다.
+ */
+export const DANGER_RATIO = 0.4;
