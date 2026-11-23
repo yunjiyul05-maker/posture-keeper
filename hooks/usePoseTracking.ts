@@ -22,6 +22,7 @@ import { loadLandmarker } from "@/lib/pose/landmarker";
 import { createDangerTracker } from "@/lib/squat/danger";
 import { classify } from "@/lib/squat/judge";
 import { extractLeg, kneeForwardRatio } from "@/lib/squat/metrics";
+import { createMedianFilter } from "@/lib/squat/smoothing";
 import { BRIGHTNESS_INTERVAL_MS, MIN_BRIGHTNESS } from "@/lib/squat/thresholds";
 
 export type ModelState = "loading" | "ready" | "error";
@@ -79,6 +80,7 @@ export function usePoseTracking({
         let lastDebugAt = 0;
         const selector = createSelector();
         const danger = createDangerTracker();
+        const smoother = createMedianFilter(5); // 튀는 값을 걸러 낸다
         // 응답 속도 측정: 프레임 간격과 한 프레임 처리 시간(관절 인식~그리기)
         const processing = createRollingStats();
         const interval = createRollingStats();
@@ -118,9 +120,11 @@ export function usePoseTracking({
 
             // 무릎 전방 이동 비율: 몸이 잘 보일 때만 계산한다(안 보이면 판정 중단)
             const leg = ok && side ? extractLeg(joints, side) : null;
-            const ratio = leg
-              ? kneeForwardRatio(leg, video.videoWidth / video.videoHeight)
-              : null;
+            const ratio = smoother.push(
+              leg
+                ? kneeForwardRatio(leg, video.videoWidth / video.videoHeight)
+                : null,
+            );
             const level = judging ? classify(ratio) : null;
 
             // 위험 확정(연속 0.3초): 확정되면 경고 + 경고음(처음과 2초 간격 반복)

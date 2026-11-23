@@ -5,6 +5,7 @@ import { extractLeg, kneeForwardRatio, type Leg } from "./metrics";
 const base: Leg = {
   knee: { x: 0.5, y: 0.5 },
   ankle: { x: 0.5, y: 0.7 },
+  heel: { x: 0.48, y: 0.72 },
   toe: { x: 0.6, y: 0.7 },
 };
 
@@ -31,6 +32,7 @@ describe("무릎 전방 이동 비율", () => {
     const left: Leg = {
       knee: mirror(right.knee),
       ankle: mirror(right.ankle),
+      heel: mirror(right.heel),
       toe: mirror(right.toe),
     };
     expect(kneeForwardRatio(left)).toBeCloseTo(kneeForwardRatio(right)!);
@@ -42,6 +44,7 @@ describe("무릎 전방 이동 비율", () => {
     const far: Leg = {
       knee: scale(near.knee),
       ankle: scale(near.ankle),
+      heel: scale(near.heel),
       toe: scale(near.toe),
     };
     expect(kneeForwardRatio(far)).toBeCloseTo(kneeForwardRatio(near)!);
@@ -54,8 +57,14 @@ describe("무릎 전방 이동 비율", () => {
     expect(portrait).not.toBeCloseTo(square);
   });
 
-  it("방향을 알 수 없거나(발끝=발목) 정강이가 0이면 null", () => {
-    expect(kneeForwardRatio({ ...base, toe: { x: 0.5, y: 0.7 } })).toBeNull();
+  it("발목 위치가 흔들려도 방향은 뒤꿈치~발끝으로 정해져 부호가 뒤집히지 않는다", () => {
+    // 발목이 발끝보다 앞으로 잘못 잡히는 순간(오인식)을 흉내 낸다
+    const jitter: Leg = { ...base, knee: { x: 0.7, y: 0.5 }, ankle: { x: 0.62, y: 0.7 } };
+    expect(kneeForwardRatio(jitter)!).toBeGreaterThan(0);
+  });
+
+  it("방향을 알 수 없거나(발끝=뒤꿈치) 정강이가 0이면 null", () => {
+    expect(kneeForwardRatio({ ...base, toe: { x: 0.48, y: 0.7 } })).toBeNull();
     expect(
       kneeForwardRatio({ ...base, knee: { x: 0.5, y: 0.7 } }),
     ).toBeNull();
@@ -65,10 +74,11 @@ describe("무릎 전방 이동 비율", () => {
 describe("다리 관절 꺼내기", () => {
   const joints = Array.from({ length: 33 }, (_, i) => ({ x: i / 100, y: i / 100 }));
 
-  it("왼쪽은 25·27·31, 오른쪽은 26·28·32번", () => {
+  it("왼쪽은 25·27·29·31, 오른쪽은 26·28·30·32번", () => {
     expect(extractLeg(joints, "left")).toEqual({
       knee: joints[25],
       ankle: joints[27],
+      heel: joints[29],
       toe: joints[31],
     });
     expect(extractLeg(joints, "right")?.toe).toEqual(joints[32]);
