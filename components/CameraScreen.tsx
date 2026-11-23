@@ -1,21 +1,15 @@
 "use client";
 
 // Design Ref: §2.3 — ② 카메라 준비 화면. 권한 요청, 거부·카메라 없음·보안 연결 아님 안내,
-// 그리고 허용되면 카메라 영상을 거울처럼 보여 주는 것까지(PLAN 3·4번).
+// 허용되면 카메라 영상(거울 표시)과 준비 상태, 그리고 "운동 시작" 버튼까지(PLAN 3·4·5·7번).
 // Design Ref: §7 — 영상은 화면에만 띄우고 저장·전송하지 않는다. 화면을 나가면 카메라를 끈다.
-import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import DebugPanel, { type DebugInfo } from "@/components/DebugPanel";
+import { useEffect, useRef, useState } from "react";
+import CameraView from "@/components/CameraView";
+import DebugPanel from "@/components/DebugPanel";
 import GuidanceBanner from "@/components/GuidanceBanner";
+import { usePoseTracking } from "@/hooks/usePoseTracking";
 import { unlockAudio } from "@/lib/audio/beep";
-import { guidanceCandidates } from "@/lib/feedback/assess";
-import { GUIDANCE, type Guidance } from "@/lib/feedback/messages";
-import { createSelector } from "@/lib/feedback/selector";
-import { measureBrightness } from "@/lib/pose/brightness";
-import { checkConfidence } from "@/lib/pose/confidence";
-import { BRIGHTNESS_INTERVAL_MS, MIN_BRIGHTNESS } from "@/lib/squat/thresholds";
-import { loadLandmarker } from "@/lib/pose/landmarker";
-import { extractLeg, kneeForwardRatio } from "@/lib/squat/metrics";
+import { GUIDANCE } from "@/lib/feedback/messages";
 
 type Status =
   | "idle" // 아직 요청 전
@@ -26,11 +20,11 @@ type Status =
   | "busy" // 다른 앱이 카메라를 쓰는 중이거나 켜지 못함
   | "insecure"; // https가 아니라서 카메라를 쓸 수 없음
 
-type ModelState = "loading" | "ready" | "error";
-
 type Props = {
   /** "처음으로" 버튼 */
   onBack: () => void;
+  /** "운동 시작" 버튼. 켜진 카메라의 관리를 운동 화면에 넘긴다 */
+  onStart: (stream: MediaStream) => void;
 };
 
 /** iPhone·Safari인지 확인해 다시 허용하는 방법 문구를 나눈다 */
@@ -42,29 +36,24 @@ function isSafari(): boolean {
   return isIos || isDesktopSafari;
 }
 
-export default function CameraScreen({ onBack }: Props) {
+export default function CameraScreen({ onBack, onStart }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [model, setModel] = useState<ModelState>("loading");
-  const [guidance, setGuidance] = useState<Guidance | null>(null);
-  // 주소에 ?debug 가 있을 때만 개발용 숫자판을 보여 준다(서버에서는 항상 꺼짐)
-  const debugOn = useSyncExternalStore(
-    () => () => {},
-    () => new URLSearchParams(window.location.search).has("debug"),
-    () => false,
-  );
-  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
-  const resetDebugRef = useRef(false);
-  const debugOnRef = useRef(false);
-  useEffect(() => {
-    debugOnRef.current = debugOn;
-  }, [debugOn]);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+
+  // 허용된 뒤 모델을 불러오고 관절 추적·안내를 돌린다(③ 운동 화면과 같은 로직)
+  const { model, guidance, debugOn, debugInfo, resetDebug } = usePoseTracking({
+    active: status === "granted",
+    videoRef,
+    canvasRef,
+  });
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    setStream(null);
   }
 
   // 화면을 떠나거나(처음으로·탭 닫기) 앱 화면이 가려지면 카메라를 바로 끈다
@@ -78,111 +67,10 @@ export default function CameraScreen({ onBack }: Props) {
     document.addEventListener("visibilitychange", onHidden);
     return () => {
       document.removeEventListener("visibilitychange", onHidden);
-      stopCamera();
+      // 운동 시작으로 넘긴 경우 streamRef가 비어 있어 끄지 않는다(운동 화면이 이어서 쓴다)
+      streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
-
-  // 허용되어 영상 태그가 화면에 생기면 카메라 영상을 연결한다
-  useEffect(() => {
-    if (status === "granted" && videoRef.current && streamRef.current) {
-      videoRef.current.srcObject = streamRef.current;
-    }
-  }, [status]);
-
-  // 허용된 뒤 모델을 불러오고, 준비되면 매 프레임 관절을 찾아 영상 위에 그린다.
-  // 좌표는 화면에 그리기만 하고 저장·전송하지 않는다.
-  useEffect(() => {
-    if (status !== "granted") return;
-    let cancelled = false;
-    let frame = 0;
-
-    loadLandmarker()
-      .then((landmarker) => {
-        if (cancelled) return;
-        setModel("ready");
-        let lastTime = -1;
-        let lastBrightnessAt = -Infinity;
-        let dark = false;
-        let brightnessValue: number | null = null;
-        let maxRatio: number | null = null;
-        let minRatio: number | null = null;
-        let lastDebugAt = 0;
-        const selector = createSelector();
-        const loop = () => {
-          const video = videoRef.current;
-          const canvas = canvasRef.current;
-          if (video && canvas && video.readyState >= 2 && video.currentTime !== lastTime) {
-            lastTime = video.currentTime;
-            if (canvas.width !== video.videoWidth) {
-              canvas.width = video.videoWidth;
-              canvas.height = video.videoHeight;
-            }
-            const now = performance.now();
-            // 밝기 확인(약 0.5초마다) → 어두우면 관절 판단 결과와 상관없이 "어두움" 안내
-            if (now - lastBrightnessAt >= BRIGHTNESS_INTERVAL_MS) {
-              lastBrightnessAt = now;
-              const brightness = measureBrightness(video);
-              if (brightness !== null) {
-                dark = brightness < MIN_BRIGHTNESS;
-                brightnessValue = brightness;
-              }
-            }
-            const result = landmarker.detectForVideo(video, now);
-            const { ok, side } = checkConfidence(result.landmarks[0]);
-            // 개발용: 무릎 전방 이동 비율(몸이 잘 보일 때만). 0.1초마다 화면 숫자를 갱신한다
-            if (debugOnRef.current && now - lastDebugAt >= 100) {
-              lastDebugAt = now;
-              if (resetDebugRef.current) {
-                maxRatio = null;
-                minRatio = null;
-                resetDebugRef.current = false;
-              }
-              const leg = ok && side ? extractLeg(result.landmarks[0], side) : null;
-              const ratio = leg ? kneeForwardRatio(leg, video.videoWidth / video.videoHeight) : null;
-              if (ratio !== null) {
-                maxRatio = maxRatio === null ? ratio : Math.max(maxRatio, ratio);
-                minRatio = minRatio === null ? ratio : Math.min(minRatio, ratio);
-              }
-              setDebugInfo({
-                ratio,
-                max: maxRatio,
-                min: minRatio,
-                brightness: brightnessValue,
-                side,
-                bodyVisible: ok,
-              });
-            }
-            const { current } = selector.select(
-              guidanceCandidates({ dark, bodyVisible: ok }),
-              now,
-            );
-            setGuidance((prev) => (prev?.id === current?.id ? prev : current));
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              const drawing = new DrawingUtils(ctx);
-              for (const points of result.landmarks) {
-                drawing.drawConnectors(points, PoseLandmarker.POSE_CONNECTIONS, {
-                  color: "#5ac8fa",
-                  lineWidth: 4,
-                });
-                drawing.drawLandmarks(points, { color: "#ffffff", radius: 4 });
-              }
-            }
-          }
-          frame = requestAnimationFrame(loop);
-        };
-        loop();
-      })
-      .catch(() => {
-        if (!cancelled) setModel("error");
-      });
-
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(frame);
-    };
-  }, [status]);
 
   async function requestCamera() {
     unlockAudio(); // 버튼을 누른 이 순간에 소리를 쓸 수 있게 해 둔다
@@ -193,14 +81,14 @@ export default function CameraScreen({ onBack }: Props) {
     }
 
     setStatus("requesting");
-    setModel("loading"); // 새로 허용받을 때마다 준비 중 표시부터 시작
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const media = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" }, // 화면을 보며 운동하므로 전면 카메라
         audio: false,
       });
       stopCamera(); // 다시 시도로 이전 영상이 남아 있으면 먼저 끈다
-      streamRef.current = stream;
+      streamRef.current = media;
+      setStream(media);
       setStatus("granted");
     } catch (error) {
       const name = error instanceof DOMException ? error.name : "";
@@ -241,32 +129,8 @@ export default function CameraScreen({ onBack }: Props) {
 
       {status === "granted" && (
         <>
-          {/* iPhone은 playsInline·muted가 없으면 전체 화면으로 바뀌거나 재생되지 않는다.
-              -scale-x-100은 화면 표시만 거울처럼 좌우 반전한다. */}
-          <div className="relative aspect-[3/4] w-full -scale-x-100 overflow-hidden rounded-2xl bg-black shadow-lg">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              aria-label="내 카메라 영상"
-              className="h-full w-full object-cover"
-            />
-            {/* 뼈대 점·선: 영상과 같은 방식으로 잘리고 반전되어 겹쳐 보인다 */}
-            <canvas
-              ref={canvasRef}
-              aria-hidden="true"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          </div>
-          {debugOn && (
-            <DebugPanel
-              info={debugInfo}
-              onReset={() => {
-                resetDebugRef.current = true;
-              }}
-            />
-          )}
+          <CameraView stream={stream} videoRef={videoRef} canvasRef={canvasRef} />
+          {debugOn && <DebugPanel info={debugInfo} onReset={resetDebug} />}
           <GuidanceBanner
             guidance={
               model === "loading"
@@ -276,6 +140,20 @@ export default function CameraScreen({ onBack }: Props) {
                   : guidance
             }
           />
+          {/* 카메라 허용 + 모델 준비 완료가 되어야 켜진다(몸이 인식되는지는 조건이 아니다) */}
+          <button
+            type="button"
+            disabled={model !== "ready"}
+            onClick={() => {
+              const live = streamRef.current;
+              if (!live) return;
+              streamRef.current = null; // 카메라 관리를 운동 화면에 넘긴다
+              onStart(live);
+            }}
+            className={primary}
+          >
+            운동 시작
+          </button>
         </>
       )}
 
