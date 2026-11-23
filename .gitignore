@@ -42,3 +42,6 @@ next-env.d.ts
 
 # 삭제 대기 폴더 (사용자가 직접 확인 후 삭제)
 /trash-can/
+
+# MediaPipe wasm은 설치할 때 복사해서 만든다(용량이 커서 커밋하지 않는다)
+/public/mediapipe/

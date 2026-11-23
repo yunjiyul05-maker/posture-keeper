@@ -3,7 +3,9 @@
 // Design Ref: §2.3 — ② 카메라 준비 화면. 권한 요청, 거부·카메라 없음·보안 연결 아님 안내,
 // 그리고 허용되면 카메라 영상을 거울처럼 보여 주는 것까지(PLAN 3·4번).
 // Design Ref: §7 — 영상은 화면에만 띄우고 저장·전송하지 않는다. 화면을 나가면 카메라를 끈다.
+import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { useEffect, useRef, useState } from "react";
+import { loadLandmarker } from "@/lib/pose/landmarker";
 
 type Status =
   | "idle" // 아직 요청 전
@@ -13,6 +15,8 @@ type Status =
   | "no-camera" // 카메라 장치가 없음
   | "busy" // 다른 앱이 카메라를 쓰는 중이거나 켜지 못함
   | "insecure"; // https가 아니라서 카메라를 쓸 수 없음
+
+type ModelState = "loading" | "ready" | "error";
 
 type Props = {
   /** "처음으로" 버튼 */
@@ -31,7 +35,9 @@ function isSafari(): boolean {
 export default function CameraScreen({ onBack }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [model, setModel] = useState<ModelState>("loading");
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -60,6 +66,55 @@ export default function CameraScreen({ onBack }: Props) {
     }
   }, [status]);
 
+  // 허용된 뒤 모델을 불러오고, 준비되면 매 프레임 관절을 찾아 영상 위에 그린다.
+  // 좌표는 화면에 그리기만 하고 저장·전송하지 않는다.
+  useEffect(() => {
+    if (status !== "granted") return;
+    let cancelled = false;
+    let frame = 0;
+
+    loadLandmarker()
+      .then((landmarker) => {
+        if (cancelled) return;
+        setModel("ready");
+        let lastTime = -1;
+        const loop = () => {
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          if (video && canvas && video.readyState >= 2 && video.currentTime !== lastTime) {
+            lastTime = video.currentTime;
+            if (canvas.width !== video.videoWidth) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+            }
+            const result = landmarker.detectForVideo(video, performance.now());
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              const drawing = new DrawingUtils(ctx);
+              for (const points of result.landmarks) {
+                drawing.drawConnectors(points, PoseLandmarker.POSE_CONNECTIONS, {
+                  color: "#5ac8fa",
+                  lineWidth: 4,
+                });
+                drawing.drawLandmarks(points, { color: "#ffffff", radius: 4 });
+              }
+            }
+          }
+          frame = requestAnimationFrame(loop);
+        };
+        loop();
+      })
+      .catch(() => {
+        if (!cancelled) setModel("error");
+      });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [status]);
+
   async function requestCamera() {
     // 보안 연결(https, 또는 localhost)이 아니면 브라우저가 카메라 기능을 아예 주지 않는다
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
@@ -68,6 +123,7 @@ export default function CameraScreen({ onBack }: Props) {
     }
 
     setStatus("requesting");
+    setModel("loading"); // 새로 허용받을 때마다 준비 중 표시부터 시작
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" }, // 화면을 보며 운동하므로 전면 카메라
@@ -117,16 +173,26 @@ export default function CameraScreen({ onBack }: Props) {
         <>
           {/* iPhone은 playsInline·muted가 없으면 전체 화면으로 바뀌거나 재생되지 않는다.
               -scale-x-100은 화면 표시만 거울처럼 좌우 반전한다. */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            aria-label="내 카메라 영상"
-            className="aspect-[3/4] w-full -scale-x-100 rounded-2xl bg-black object-cover shadow-lg"
-          />
+          <div className="relative aspect-[3/4] w-full -scale-x-100 overflow-hidden rounded-2xl bg-black shadow-lg">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              aria-label="내 카메라 영상"
+              className="h-full w-full object-cover"
+            />
+            {/* 뼈대 점·선: 영상과 같은 방식으로 잘리고 반전되어 겹쳐 보인다 */}
+            <canvas
+              ref={canvasRef}
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          </div>
           <p className="text-2xl font-semibold leading-relaxed">
-            폰을 옆에 세워 주세요
+            {model === "loading" && "준비 중이에요"}
+            {model === "ready" && "폰을 옆에 세워 주세요"}
+            {model === "error" && "인터넷을 확인해 주세요"}
           </p>
         </>
       )}

@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "node scripts/copy-mediapipe-wasm.mjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.2.3",
     "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0"

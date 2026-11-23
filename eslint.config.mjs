@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 복사해 온 외부 실행 파일(MediaPipe)은 검사하지 않는다
+    "public/mediapipe/**",
   ]),
 ]);
 
