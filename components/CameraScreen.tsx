@@ -128,33 +128,45 @@ export default function CameraScreen({ onBack, onStart }: Props) {
       )}
 
       {status === "granted" && (
-        <>
-          <CameraView stream={stream} videoRef={videoRef} canvasRef={canvasRef} />
-          {debugOn && <DebugPanel info={debugInfo} onReset={resetDebug} />}
-          <GuidanceBanner
-            guidance={
-              model === "loading"
-                ? GUIDANCE.loading
-                : model === "error"
-                  ? GUIDANCE.offline
-                  : guidance
-            }
+        // ?debug일 때 넓은 화면(노트북)에서는 영상은 왼쪽, 숫자판·안내·버튼은 오른쪽에 가로로 놓는다
+        <div
+          className={`flex flex-col gap-5 ${
+            debugOn ? "md:grid md:grid-cols-[auto_1fr] md:items-start md:gap-6" : ""
+          }`}
+        >
+          <CameraView
+            stream={stream}
+            videoRef={videoRef}
+            canvasRef={canvasRef}
+            className={debugOn ? "aspect-[3/4] md:h-[88vh] md:w-auto" : undefined}
           />
-          {/* 카메라 허용 + 모델 준비 완료가 되어야 켜진다(몸이 인식되는지는 조건이 아니다) */}
-          <button
-            type="button"
-            disabled={model !== "ready"}
-            onClick={() => {
-              const live = streamRef.current;
-              if (!live) return;
-              streamRef.current = null; // 카메라 관리를 운동 화면에 넘긴다
-              onStart(live);
-            }}
-            className={primary}
-          >
-            운동 시작
-          </button>
-        </>
+          <div className="flex flex-col gap-3">
+            {debugOn && <DebugPanel info={debugInfo} onReset={resetDebug} />}
+            <GuidanceBanner
+              guidance={
+                model === "loading"
+                  ? GUIDANCE.loading
+                  : model === "error"
+                    ? GUIDANCE.offline
+                    : guidance
+              }
+            />
+            {/* 카메라 허용 + 모델 준비 완료가 되어야 켜진다(몸이 인식되는지는 조건이 아니다) */}
+            <button
+              type="button"
+              disabled={model !== "ready"}
+              onClick={() => {
+                const live = streamRef.current;
+                if (!live) return;
+                streamRef.current = null; // 카메라 관리를 운동 화면에 넘긴다
+                onStart(live);
+              }}
+              className={primary}
+            >
+              운동 시작
+            </button>
+          </div>
+        </div>
       )}
 
       {status === "denied" && (

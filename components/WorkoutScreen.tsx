@@ -41,30 +41,41 @@ export default function WorkoutScreen({ stream, onEnd }: Props) {
   }, []);
 
   return (
-    <section className="flex flex-col gap-4">
+    // ?debug일 때 넓은 화면(노트북)에서는 영상은 왼쪽, 숫자판·안내·끝내기는 오른쪽에 가로로 놓는다
+    <section
+      className={`flex flex-col gap-4 ${
+        debugOn ? "md:grid md:grid-cols-[auto_1fr] md:items-start md:gap-6" : ""
+      }`}
+    >
       <CameraView
         stream={stream}
         videoRef={videoRef}
         canvasRef={canvasRef}
-        className="aspect-[3/4] max-h-[60vh]"
-      />
-      {debugOn && <DebugPanel info={debugInfo} onReset={resetDebug} />}
-      <GuidanceBanner
-        guidance={
-          model === "loading"
-            ? GUIDANCE.loading
-            : model === "error"
-              ? GUIDANCE.offline
-              : guidance
+        className={
+          debugOn
+            ? "aspect-[3/4] max-h-[60vh] md:h-[88vh] md:max-h-none md:w-auto"
+            : "aspect-[3/4] max-h-[60vh]"
         }
       />
-      <button
-        type="button"
-        onClick={onEnd}
-        className="btn-glass min-h-16 rounded-2xl px-6 text-2xl font-bold enabled:active:scale-[0.98]"
-      >
-        운동 끝내기
-      </button>
+      <div className="flex flex-col gap-3">
+        {debugOn && <DebugPanel info={debugInfo} onReset={resetDebug} />}
+        <GuidanceBanner
+          guidance={
+            model === "loading"
+              ? GUIDANCE.loading
+              : model === "error"
+                ? GUIDANCE.offline
+                : guidance
+          }
+        />
+        <button
+          type="button"
+          onClick={onEnd}
+          className="btn-glass min-h-16 rounded-2xl px-6 text-2xl font-bold enabled:active:scale-[0.98]"
+        >
+          운동 끝내기
+        </button>
+      </div>
     </section>
   );
 }
