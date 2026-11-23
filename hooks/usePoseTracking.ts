@@ -5,19 +5,15 @@
 import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
 import {
   useEffect,
-  useRef,
   useState,
-  useSyncExternalStore,
   type RefObject,
 } from "react";
-import type { DebugInfo } from "@/components/DebugPanel";
 import { guidanceCandidates } from "@/lib/feedback/assess";
 import type { Guidance } from "@/lib/feedback/messages";
 import { createSelector } from "@/lib/feedback/selector";
 import { playWarningBeep } from "@/lib/audio/beep";
 import { measureBrightness } from "@/lib/pose/brightness";
 import { checkConfidence } from "@/lib/pose/confidence";
-import { createRollingStats, estimateWarningDelay } from "@/lib/perf/stats";
 import { loadLandmarker } from "@/lib/pose/landmarker";
 import { createDangerTracker } from "@/lib/squat/danger";
 import { classify } from "@/lib/squat/judge";
@@ -26,15 +22,6 @@ import { createMedianFilter } from "@/lib/squat/smoothing";
 import { BRIGHTNESS_INTERVAL_MS, MIN_BRIGHTNESS } from "@/lib/squat/thresholds";
 
 export type ModelState = "loading" | "ready" | "error";
-
-/** 주소에 ?debug 가 있을 때만 true (서버에서는 항상 false) */
-export function useDebugFlag(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    () => new URLSearchParams(window.location.search).has("debug"),
-    () => false,
-  );
-}
 
 type Options = {
   /** true인 동안만 모델을 불러오고 관절을 찾는다 */
@@ -51,18 +38,11 @@ export function usePoseTracking({
   canvasRef,
   judging = false,
 }: Options) {
-  const debugOn = useDebugFlag();
   const [model, setModel] = useState<ModelState>("loading");
   // 모델 불러오기를 다시 시도할 때마다 올려서 효과를 다시 실행한다
   const [attempt, setAttempt] = useState(0);
   const [guidance, setGuidance] = useState<Guidance | null>(null);
-  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
-  const resetDebugRef = useRef(false);
-  const debugOnRef = useRef(false);
 
-  useEffect(() => {
-    debugOnRef.current = debugOn;
-  }, [debugOn]);
 
   useEffect(() => {
     if (!active) return;
@@ -76,17 +56,9 @@ export function usePoseTracking({
         let lastTime = -1;
         let lastBrightnessAt = -Infinity;
         let dark = false;
-        let brightnessValue: number | null = null;
-        let maxRatio: number | null = null;
-        let minRatio: number | null = null;
-        let lastDebugAt = 0;
         const selector = createSelector();
         const danger = createDangerTracker();
         const smoother = createMedianFilter(5); // 튀는 값을 걸러 낸다
-        // 응답 속도 측정: 프레임 간격과 한 프레임 처리 시간(관절 인식~그리기)
-        const processing = createRollingStats();
-        const interval = createRollingStats();
-        let lastFrameAt: number | null = null;
 
         const loop = () => {
           const video = videoRef.current;
@@ -110,12 +82,9 @@ export function usePoseTracking({
               const brightness = measureBrightness(video);
               if (brightness !== null) {
                 dark = brightness < MIN_BRIGHTNESS;
-                brightnessValue = brightness;
               }
             }
 
-            if (lastFrameAt !== null) interval.add(now - lastFrameAt);
-            lastFrameAt = now;
             const result = landmarker.detectForVideo(video, now);
             const joints = result.landmarks[0];
             const { ok, side } = checkConfidence(joints);
@@ -138,34 +107,6 @@ export function usePoseTracking({
             const dangerActive = active && !dark;
             if (beep && !dark) playWarningBeep();
 
-            // 개발용 숫자판: 0.1초마다 화면 숫자를 갱신한다
-            if (debugOnRef.current && now - lastDebugAt >= 100) {
-              lastDebugAt = now;
-              if (resetDebugRef.current) {
-                maxRatio = null;
-                minRatio = null;
-                resetDebugRef.current = false;
-              }
-              if (ratio !== null) {
-                maxRatio = maxRatio === null ? ratio : Math.max(maxRatio, ratio);
-                minRatio = minRatio === null ? ratio : Math.min(minRatio, ratio);
-              }
-              setDebugInfo({
-                ratio,
-                max: maxRatio,
-                min: minRatio,
-                brightness: brightnessValue,
-                side,
-                bodyVisible: ok,
-                processingAvg: processing.average(),
-                processingMax: processing.max(),
-                warningDelay: estimateWarningDelay(
-                  interval.average(),
-                  processing.average(),
-                ),
-              });
-            }
-
             const { current } = selector.select(
               guidanceCandidates({ dark, bodyVisible: ok, level, dangerActive, judging }),
               now,
@@ -185,7 +126,6 @@ export function usePoseTracking({
                 drawing.drawLandmarks(points, { color: "#ffffff", radius: 4 });
               }
             }
-            processing.add(performance.now() - now);
           }
           frame = requestAnimationFrame(loop);
         };
@@ -207,14 +147,5 @@ export function usePoseTracking({
     setAttempt((n) => n + 1);
   }
 
-  return {
-    retryModel,
-    model,
-    guidance,
-    debugOn,
-    debugInfo,
-    resetDebug: () => {
-      resetDebugRef.current = true;
-    },
-  };
+  return { retryModel, model, guidance };
 }

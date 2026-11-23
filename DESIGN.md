@@ -166,7 +166,6 @@ components/
   WorkoutScreen.tsx     ③ 운동 화면
   CameraView.tsx        카메라 영상 + 뼈대(거울 표시)
   GuidanceBanner.tsx    안내 문구·경고 표시
-  DebugPanel.tsx        개발용 숫자판(?debug, 배포 전에 닫는다)
 hooks/
   usePoseTracking.ts    매 프레임: 밝기 → 관절 인식 → 신뢰도 → 지표 → 판정 → 안내 고르기
 lib/
@@ -182,7 +181,6 @@ lib/
   feedback/assess.ts    상황에 맞는 안내 후보 고르기(위험·어두움·몸 안 보임 순)
   feedback/selector.ts  안내 1개 고르기·3초 반복 방지·위험 우선
   audio/beep.ts         경고음
-  perf/stats.ts         처리 시간 통계(개발용)
 public/models/          MediaPipe 모델 파일
 public/mediapipe/       MediaPipe 실행(wasm) 파일(설치 때 복사, git 제외)
 scripts/                wasm 복사, 서버 전송 코드 점검(npm run check:privacy)
@@ -190,7 +188,7 @@ scripts/                wasm 복사, 서버 전송 코드 점검(npm run check:p
 
 카메라·MediaPipe를 쓰는 화면은 브라우저에서만 돌아가므로 해당 파일 맨 위에 `'use client'`를 붙인다. (구현 전 `node_modules/next/dist/docs/`의 해당 안내를 먼저 읽는다.)
 
-개발·시험 전용 모드(9·13번용)는 지금 주소 뒤에 `?debug`를 붙이면 열리는 숫자판으로 구현했다(영상 파일 입력은 아직 없다). **배포 화면에서는 보이지 않게 닫는 일은 아직 하지 않았다.** 결과를 저장하거나 서버로 보내지 않고, 기록은 사람이 직접 한다.
+개발·시험 전용 숫자판(`?debug`)은 만들었다가 사용자 요청으로 앱에서 **뺐다**(파일은 `trash-can/debug-panel/`에 있다). 기준값 검증용 영상 파일 입력 모드도 만들지 않았다. 필요해지면 새로 설계한다.
 
 ## 5. 기술 선택
 

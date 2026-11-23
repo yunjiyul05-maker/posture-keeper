@@ -5,7 +5,6 @@
 // 교정(10번)·위험(11번) 판정은 usePoseTracking이 이 화면에서만 돌린다.
 import { useEffect, useRef } from "react";
 import CameraView from "@/components/CameraView";
-import DebugPanel from "@/components/DebugPanel";
 import GuidanceBanner from "@/components/GuidanceBanner";
 import { usePoseTracking } from "@/hooks/usePoseTracking";
 import { GUIDANCE } from "@/lib/feedback/messages";
@@ -20,7 +19,7 @@ type Props = {
 export default function WorkoutScreen({ stream, onEnd }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { model, guidance, debugOn, debugInfo, resetDebug, retryModel } =
+  const { model, guidance, retryModel } =
     usePoseTracking({
     active: true,
     judging: true, // 운동 화면에서만 교정·위험 판정을 한다
@@ -42,24 +41,14 @@ export default function WorkoutScreen({ stream, onEnd }: Props) {
   }, []);
 
   return (
-    // ?debug일 때 넓은 화면(노트북)에서는 영상은 왼쪽, 숫자판·안내·끝내기는 오른쪽에 가로로 놓는다
-    <section
-      className={`flex flex-col gap-4 ${
-        debugOn ? "md:grid md:grid-cols-[auto_1fr] md:items-start md:gap-6" : ""
-      }`}
-    >
+    <section className="flex flex-col gap-4">
       <CameraView
         stream={stream}
         videoRef={videoRef}
         canvasRef={canvasRef}
-        className={
-          debugOn
-            ? "aspect-[3/4] max-h-[70vh] md:h-[88vh] md:max-h-none md:w-auto"
-            : "aspect-[3/4] max-h-[70vh]"
-        }
+        className="aspect-[3/4] max-h-[70vh]"
       />
-      <div className="flex flex-col gap-3">
-        {debugOn && <DebugPanel info={debugInfo} onReset={resetDebug} />}
+      <div className="flex flex-col gap-4">
         <GuidanceBanner
           guidance={
             model === "loading"

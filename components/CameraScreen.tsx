@@ -5,7 +5,6 @@
 // Design Ref: §7 — 영상은 화면에만 띄우고 저장·전송하지 않는다. 화면을 나가면 카메라를 끈다.
 import { useEffect, useRef, useState } from "react";
 import CameraView from "@/components/CameraView";
-import DebugPanel from "@/components/DebugPanel";
 import GuidanceBanner from "@/components/GuidanceBanner";
 import { usePoseTracking } from "@/hooks/usePoseTracking";
 import { unlockAudio } from "@/lib/audio/beep";
@@ -44,7 +43,7 @@ export default function CameraScreen({ onBack, onStart }: Props) {
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   // 허용된 뒤 모델을 불러오고 관절 추적·안내를 돌린다(③ 운동 화면과 같은 로직)
-  const { model, guidance, debugOn, debugInfo, resetDebug, retryModel } =
+  const { model, guidance, retryModel } =
     usePoseTracking({
     active: status === "granted",
     videoRef,
@@ -129,20 +128,13 @@ export default function CameraScreen({ onBack, onStart }: Props) {
       )}
 
       {status === "granted" && (
-        // ?debug일 때 넓은 화면(노트북)에서는 영상은 왼쪽, 숫자판·안내·버튼은 오른쪽에 가로로 놓는다
-        <div
-          className={`flex flex-col gap-5 ${
-            debugOn ? "md:grid md:grid-cols-[auto_1fr] md:items-start md:gap-6" : ""
-          }`}
-        >
+        <div className="flex flex-col gap-5">
           <CameraView
             stream={stream}
             videoRef={videoRef}
             canvasRef={canvasRef}
-            className={debugOn ? "aspect-[3/4] md:h-[88vh] md:w-auto" : undefined}
           />
-          <div className="flex flex-col gap-3">
-            {debugOn && <DebugPanel info={debugInfo} onReset={resetDebug} />}
+          <div className="flex flex-col gap-5">
             <GuidanceBanner
               guidance={
                 model === "loading"
