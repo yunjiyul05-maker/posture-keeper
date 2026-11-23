@@ -2,7 +2,7 @@
 
 // Design Ref: §2.4 — ③ 운동 화면. 위쪽 큰 카메라 영상(+뼈대), 아래 안내 문구 1개, "운동 끝내기"는 항상 보인다.
 // 운동이 끝나면(끝내기·앱 화면이 가려짐) onEnd가 카메라를 즉시 끄고 ①로 돌아간다. (PRD: 운동 중에만 카메라 사용)
-// 교정·위험 판정은 PLAN 10·11번에서 이 화면에 더한다.
+// 교정(10번)·위험(11번) 판정은 usePoseTracking이 이 화면에서만 돌린다.
 import { useEffect, useRef } from "react";
 import CameraView from "@/components/CameraView";
 import DebugPanel from "@/components/DebugPanel";
@@ -22,6 +22,7 @@ export default function WorkoutScreen({ stream, onEnd }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { model, guidance, debugOn, debugInfo, resetDebug } = usePoseTracking({
     active: true,
+    judging: true, // 운동 화면에서만 교정·위험 판정을 한다
     videoRef,
     canvasRef,
   });

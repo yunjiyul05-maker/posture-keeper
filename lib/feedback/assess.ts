@@ -11,13 +11,17 @@ export type Assessment = {
   bodyVisible: boolean;
   /** 자세 판정(판정 중단이면 null) */
   level?: Level | null;
+  /** 위험이 확정되어 경고 중인가(연속 0.3초 규칙은 squat/danger.ts) */
+  dangerActive?: boolean;
 };
 
 /** 판정을 해도 되는 상태(밝고 몸이 다 보임)면 null 후보 대신 기본 안내를 돌려준다 */
 export function guidanceCandidates(a: Assessment): Guidance[] {
+  // 위험 경고는 무엇보다 우선한다(어두움·몸 안 보임 안내보다 먼저)
+  if (a.dangerActive) return [GUIDANCE.danger];
   if (a.dark) return [GUIDANCE.dark];
   if (!a.bodyVisible) return [GUIDANCE.partialBody];
-  // 위험 경고는 PLAN 11번에서 더한다. 그때까지 위험 수준도 우선은 교정 안내로 보여 준다.
+  // 위험 수준이어도 0.3초가 안 되어 아직 확정 전이면 우선 교정 안내를 보여 준다
   if (a.level === "caution" || a.level === "danger") return [GUIDANCE.correct];
   if (a.level === "normal") return [GUIDANCE.good];
   return [GUIDANCE.cameraReady];

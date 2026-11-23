@@ -14,9 +14,11 @@ import type { DebugInfo } from "@/components/DebugPanel";
 import { guidanceCandidates } from "@/lib/feedback/assess";
 import type { Guidance } from "@/lib/feedback/messages";
 import { createSelector } from "@/lib/feedback/selector";
+import { playWarningBeep } from "@/lib/audio/beep";
 import { measureBrightness } from "@/lib/pose/brightness";
 import { checkConfidence } from "@/lib/pose/confidence";
 import { loadLandmarker } from "@/lib/pose/landmarker";
+import { createDangerTracker } from "@/lib/squat/danger";
 import { classify } from "@/lib/squat/judge";
 import { extractLeg, kneeForwardRatio } from "@/lib/squat/metrics";
 import { BRIGHTNESS_INTERVAL_MS, MIN_BRIGHTNESS } from "@/lib/squat/thresholds";
@@ -37,9 +39,16 @@ type Options = {
   active: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  /** true면 자세를 판정해 교정·위험 안내를 한다(운동 화면). false면 준비 안내만 한다. */
+  judging?: boolean;
 };
 
-export function usePoseTracking({ active, videoRef, canvasRef }: Options) {
+export function usePoseTracking({
+  active,
+  videoRef,
+  canvasRef,
+  judging = false,
+}: Options) {
   const debugOn = useDebugFlag();
   const [model, setModel] = useState<ModelState>("loading");
   const [guidance, setGuidance] = useState<Guidance | null>(null);
@@ -68,6 +77,7 @@ export function usePoseTracking({ active, videoRef, canvasRef }: Options) {
         let minRatio: number | null = null;
         let lastDebugAt = 0;
         const selector = createSelector();
+        const danger = createDangerTracker();
 
         const loop = () => {
           const video = videoRef.current;
@@ -104,7 +114,13 @@ export function usePoseTracking({ active, videoRef, canvasRef }: Options) {
             const ratio = leg
               ? kneeForwardRatio(leg, video.videoWidth / video.videoHeight)
               : null;
-            const level = classify(ratio);
+            const level = judging ? classify(ratio) : null;
+
+            // 위험 확정(연속 0.3초): 확정되면 경고 + 경고음(처음과 2초 간격 반복)
+            const { active: dangerActive, beep } = judging
+              ? danger.update(level, now)
+              : { active: false, beep: false };
+            if (beep) playWarningBeep();
 
             // 개발용 숫자판: 0.1초마다 화면 숫자를 갱신한다
             if (debugOnRef.current && now - lastDebugAt >= 100) {
@@ -129,7 +145,7 @@ export function usePoseTracking({ active, videoRef, canvasRef }: Options) {
             }
 
             const { current } = selector.select(
-              guidanceCandidates({ dark, bodyVisible: ok, level }),
+              guidanceCandidates({ dark, bodyVisible: ok, level, dangerActive }),
               now,
             );
             setGuidance((prev) => (prev?.id === current?.id ? prev : current));
@@ -160,7 +176,7 @@ export function usePoseTracking({ active, videoRef, canvasRef }: Options) {
       cancelled = true;
       cancelAnimationFrame(frame);
     };
-  }, [active, videoRef, canvasRef]);
+  }, [active, judging, videoRef, canvasRef]);
 
   return {
     model,

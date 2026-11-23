@@ -18,4 +18,8 @@ describe("안내 후보 고르기", () => {
     expect(ids({ dark: false, bodyVisible: true, level: "normal" })).toEqual(["good"]);
     expect(ids({ dark: false, bodyVisible: true, level: null })).toEqual(["cameraReady"]);
   });
+
+  it("위험 경고는 어두움·몸 안 보임보다도 먼저", () => {
+    expect(ids({ dark: true, bodyVisible: false, dangerActive: true })).toEqual(["danger"]);
+  });
 });
