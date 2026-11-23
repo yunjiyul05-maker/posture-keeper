@@ -125,7 +125,8 @@ PRD의 "문장 1개·공백 포함 20자 이내" 규칙을 운동 화면뿐 아�
    ↓ (통과 시)
 [처리 4] 지표 계산 — "무릎 전방 이동 비율"
    · 정의(제안): (무릎 앞쪽 이동 거리) ÷ (정강이 길이), 무릎의 가로 위치와 발끝의 가로 위치 차이를 정강이(무릎~발목) 길이로 나눈 값
-   · 진행 방향은 발끝이 발목보다 앞쪽에 있는 쪽으로 정해 좌우 어느 쪽을 보고 서든 같은 부호가 되게 한다
+   · 진행 방향은 발끝이 뒤꿈치보다 앞쪽에 있는 쪽으로 정해 좌우 어느 쪽을 보고 서든 같은 부호가 되게 한다(발목보다 뒤꿈치~발끝이 길어 방향이 덜 뒤집힌다)
+   · 값은 최근 5프레임(약 0.17초)의 중앙값으로 걸러 한 프레임만 튀는 오인식을 줄인다(시간 예산에 포함). 뒤꿈치는 신뢰도 0.7 확인 대상이 아니며, 방향 판단에만 쓴다
    · 정강이 길이로 나누므로 카메라와의 거리·체격이 달라도 비교할 수 있다
    ↓
 [처리 5] 판정 — 기준값은 `thresholds.ts` 한 파일에 모음
@@ -163,23 +164,33 @@ components/
   DisclaimerScreen.tsx  ① 시작 전 안내
   CameraScreen.tsx      ② 카메라 준비·권한 안내
   WorkoutScreen.tsx     ③ 운동 화면
+  CameraView.tsx        카메라 영상 + 뼈대(거울 표시)
   GuidanceBanner.tsx    안내 문구·경고 표시
+  DebugPanel.tsx        개발용 숫자판(?debug, 배포 전에 닫는다)
+hooks/
+  usePoseTracking.ts    매 프레임: 밝기 → 관절 인식 → 신뢰도 → 지표 → 판정 → 안내 고르기
 lib/
   pose/landmarker.ts    MediaPipe 불러오기·좌표 뽑기
   pose/brightness.ts    밝기 확인
   pose/confidence.ts    카메라 쪽 다리 고르기·신뢰도 확인
   squat/metrics.ts      무릎 전방 이동 비율 계산
-  squat/thresholds.ts   주의·위험 기준값 (출처 주석 포함, 임의 변경 금지)
-  squat/judge.ts        정상/주의/위험 판정 (연속 0.3초 포함)
+  squat/smoothing.ts    5프레임 중앙값으로 튀는 값 걸러내기
+  squat/thresholds.ts   주의·위험 기준값 (초기값·미검증, 출처 주석 포함)
+  squat/judge.ts        정상/주의/위험 판정
+  squat/danger.ts       위험 확정(연속 0.3초)·경고음 간격·정상 1초 해제
   feedback/messages.ts  안내 문구 목록 (20자 이내)
+  feedback/assess.ts    상황에 맞는 안내 후보 고르기(위험·어두움·몸 안 보임 순)
   feedback/selector.ts  안내 1개 고르기·3초 반복 방지·위험 우선
   audio/beep.ts         경고음
-public/models/          MediaPipe 모델·wasm 파일
+  perf/stats.ts         처리 시간 통계(개발용)
+public/models/          MediaPipe 모델 파일
+public/mediapipe/       MediaPipe 실행(wasm) 파일(설치 때 복사, git 제외)
+scripts/                wasm 복사, 서버 전송 코드 점검(npm run check:privacy)
 ```
 
 카메라·MediaPipe를 쓰는 화면은 브라우저에서만 돌아가므로 해당 파일 맨 위에 `'use client'`를 붙인다. (구현 전 `node_modules/next/dist/docs/`의 해당 안내를 먼저 읽는다.)
 
-개발·시험 전용 모드(9·13번용)는 개발 환경에서만 열리는 별도 경로로 두고, 배포 화면에서는 보이지 않게 한다. 로컬 영상 파일을 넣어 앱 판정 결과를 화면에 보여 주고, 결과를 저장하거나 서버로 보내지 않는다. 기록은 사람이 직접 한다.
+개발·시험 전용 모드(9·13번용)는 지금 주소 뒤에 `?debug`를 붙이면 열리는 숫자판으로 구현했다(영상 파일 입력은 아직 없다). **배포 화면에서는 보이지 않게 닫는 일은 아직 하지 않았다.** 결과를 저장하거나 서버로 보내지 않고, 기록은 사람이 직접 한다.
 
 ## 5. 기술 선택
 

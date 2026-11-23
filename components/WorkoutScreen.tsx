@@ -20,7 +20,8 @@ type Props = {
 export default function WorkoutScreen({ stream, onEnd }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { model, guidance, debugOn, debugInfo, resetDebug } = usePoseTracking({
+  const { model, guidance, debugOn, debugInfo, resetDebug, retryModel } =
+    usePoseTracking({
     active: true,
     judging: true, // 운동 화면에서만 교정·위험 판정을 한다
     videoRef,
@@ -53,8 +54,8 @@ export default function WorkoutScreen({ stream, onEnd }: Props) {
         canvasRef={canvasRef}
         className={
           debugOn
-            ? "aspect-[3/4] max-h-[60vh] md:h-[88vh] md:max-h-none md:w-auto"
-            : "aspect-[3/4] max-h-[60vh]"
+            ? "aspect-[3/4] max-h-[70vh] md:h-[88vh] md:max-h-none md:w-auto"
+            : "aspect-[3/4] max-h-[70vh]"
         }
       />
       <div className="flex flex-col gap-3">
@@ -68,6 +69,15 @@ export default function WorkoutScreen({ stream, onEnd }: Props) {
                 : guidance
           }
         />
+        {model === "error" && (
+          <button
+            type="button"
+            onClick={retryModel}
+            className="btn-primary min-h-16 rounded-2xl px-6 text-2xl font-bold enabled:active:scale-[0.98]"
+          >
+            다시 시도
+          </button>
+        )}
         <button
           type="button"
           onClick={onEnd}

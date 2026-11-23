@@ -96,4 +96,13 @@ describe("경고음 반복과 해제", () => {
     t.update("normal", 1600);
     expect(t.update("normal", 2500).active).toBe(true); // 900ms
   });
+
+  it("주의 자세는 해제 시간으로 세지 않는다(정상일 때만 해제)", () => {
+    const t = confirmed();
+    for (let ms = 1000; ms <= 5000; ms += 500) {
+      expect(t.update("caution", ms).active).toBe(true);
+    }
+    t.update("normal", 5500);
+    expect(t.update("normal", 6500).active).toBe(false);
+  });
 });

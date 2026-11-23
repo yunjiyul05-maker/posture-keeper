@@ -20,5 +20,7 @@ export function measureBrightness(video: HTMLVideoElement): number | null {
     // 사람 눈에 느껴지는 밝기 비율(Rec.601)
     sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
   }
+  // 계산이 끝났으니 줄여 그린 장면을 바로 지운다(영상 조각을 메모리에 남기지 않는다)
+  ctx.clearRect(0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
   return sum / (SAMPLE_SIZE * SAMPLE_SIZE);
 }

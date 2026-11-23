@@ -44,7 +44,8 @@ export default function CameraScreen({ onBack, onStart }: Props) {
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   // 허용된 뒤 모델을 불러오고 관절 추적·안내를 돌린다(③ 운동 화면과 같은 로직)
-  const { model, guidance, debugOn, debugInfo, resetDebug } = usePoseTracking({
+  const { model, guidance, debugOn, debugInfo, resetDebug, retryModel } =
+    usePoseTracking({
     active: status === "granted",
     videoRef,
     canvasRef,
@@ -151,11 +152,17 @@ export default function CameraScreen({ onBack, onStart }: Props) {
                     : guidance
               }
             />
+            {model === "error" && (
+              <button type="button" onClick={retryModel} className={secondary}>
+                다시 시도
+              </button>
+            )}
             {/* 카메라 허용 + 모델 준비 완료가 되어야 켜진다(몸이 인식되는지는 조건이 아니다) */}
             <button
               type="button"
               disabled={model !== "ready"}
               onClick={() => {
+                unlockAudio(); // 운동 시작을 누른 순간 소리를 다시 깨운다(iPhone 대비)
                 const live = streamRef.current;
                 if (!live) return;
                 streamRef.current = null; // 카메라 관리를 운동 화면에 넘긴다

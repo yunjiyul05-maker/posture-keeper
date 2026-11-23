@@ -53,6 +53,8 @@ export function usePoseTracking({
 }: Options) {
   const debugOn = useDebugFlag();
   const [model, setModel] = useState<ModelState>("loading");
+  // 모델 불러오기를 다시 시도할 때마다 올려서 효과를 다시 실행한다
+  const [attempt, setAttempt] = useState(0);
   const [guidance, setGuidance] = useState<Guidance | null>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const resetDebugRef = useRef(false);
@@ -118,8 +120,9 @@ export function usePoseTracking({
             const joints = result.landmarks[0];
             const { ok, side } = checkConfidence(joints);
 
-            // 무릎 전방 이동 비율: 몸이 잘 보일 때만 계산한다(안 보이면 판정 중단)
-            const leg = ok && side ? extractLeg(joints, side) : null;
+            // 무릎 전방 이동 비율: 밝고 몸이 잘 보일 때만 계산한다.
+            // 어둡거나 안 보이면 판정을 중단한다(DESIGN §3: 어두우면 판정 중단).
+            const leg = ok && !dark && side ? extractLeg(joints, side) : null;
             const ratio = smoother.push(
               leg
                 ? kneeForwardRatio(leg, video.videoWidth / video.videoHeight)
@@ -127,11 +130,13 @@ export function usePoseTracking({
             );
             const level = judging ? classify(ratio) : null;
 
-            // 위험 확정(연속 0.3초): 확정되면 경고 + 경고음(처음과 2초 간격 반복)
-            const { active: dangerActive, beep } = judging
+            // 위험 확정(연속 0.3초): 확정되면 경고 + 경고음(처음과 2초 간격 반복).
+            // 어두우면 판정 중단 상태라 경고 표시·경고음을 하지 않는다.
+            const { active, beep } = judging
               ? danger.update(level, now)
               : { active: false, beep: false };
-            if (beep) playWarningBeep();
+            const dangerActive = active && !dark;
+            if (beep && !dark) playWarningBeep();
 
             // 개발용 숫자판: 0.1초마다 화면 숫자를 갱신한다
             if (debugOnRef.current && now - lastDebugAt >= 100) {
@@ -162,7 +167,7 @@ export function usePoseTracking({
             }
 
             const { current } = selector.select(
-              guidanceCandidates({ dark, bodyVisible: ok, level, dangerActive }),
+              guidanceCandidates({ dark, bodyVisible: ok, level, dangerActive, judging }),
               now,
             );
             setGuidance((prev) => (prev?.id === current?.id ? prev : current));
@@ -194,9 +199,16 @@ export function usePoseTracking({
       cancelled = true;
       cancelAnimationFrame(frame);
     };
-  }, [active, judging, videoRef, canvasRef]);
+  }, [active, judging, attempt, videoRef, canvasRef]);
+
+  /** 모델 불러오기에 실패했을 때 "다시 시도" 버튼이 부른다 */
+  function retryModel() {
+    setModel("loading");
+    setAttempt((n) => n + 1);
+  }
 
   return {
+    retryModel,
     model,
     guidance,
     debugOn,

@@ -20,7 +20,10 @@ export function unlockAudio(): void {
 
 /** 짧고 높은 경고음 2번 */
 export function playWarningBeep(): void {
-  if (!context || context.state !== "running") return;
+  if (!context) return;
+  // 소리 장치가 멈춰 있으면 깨워 둔다(이번 한 번은 못 내도 다음 반복 때 난다)
+  if (context.state === "suspended") void context.resume();
+  if (context.state !== "running") return;
   const start = context.currentTime;
   for (const offset of [0, 0.25]) {
     const osc = context.createOscillator();
