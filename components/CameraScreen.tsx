@@ -7,7 +7,12 @@ import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { useEffect, useRef, useState } from "react";
 import GuidanceBanner from "@/components/GuidanceBanner";
 import { unlockAudio } from "@/lib/audio/beep";
-import { GUIDANCE } from "@/lib/feedback/messages";
+import { guidanceCandidates } from "@/lib/feedback/assess";
+import { GUIDANCE, type Guidance } from "@/lib/feedback/messages";
+import { createSelector } from "@/lib/feedback/selector";
+import { measureBrightness } from "@/lib/pose/brightness";
+import { checkConfidence } from "@/lib/pose/confidence";
+import { BRIGHTNESS_INTERVAL_MS, MIN_BRIGHTNESS } from "@/lib/squat/thresholds";
 import { loadLandmarker } from "@/lib/pose/landmarker";
 
 type Status =
@@ -41,6 +46,7 @@ export default function CameraScreen({ onBack }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [model, setModel] = useState<ModelState>("loading");
+  const [guidance, setGuidance] = useState<Guidance | null>(null);
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -81,6 +87,9 @@ export default function CameraScreen({ onBack }: Props) {
         if (cancelled) return;
         setModel("ready");
         let lastTime = -1;
+        let lastBrightnessAt = -Infinity;
+        let dark = false;
+        const selector = createSelector();
         const loop = () => {
           const video = videoRef.current;
           const canvas = canvasRef.current;
@@ -90,7 +99,20 @@ export default function CameraScreen({ onBack }: Props) {
               canvas.width = video.videoWidth;
               canvas.height = video.videoHeight;
             }
-            const result = landmarker.detectForVideo(video, performance.now());
+            const now = performance.now();
+            // 밝기 확인(약 0.5초마다) → 어두우면 관절 판단 결과와 상관없이 "어두움" 안내
+            if (now - lastBrightnessAt >= BRIGHTNESS_INTERVAL_MS) {
+              lastBrightnessAt = now;
+              const brightness = measureBrightness(video);
+              if (brightness !== null) dark = brightness < MIN_BRIGHTNESS;
+            }
+            const result = landmarker.detectForVideo(video, now);
+            const { ok } = checkConfidence(result.landmarks[0]);
+            const { current } = selector.select(
+              guidanceCandidates({ dark, bodyVisible: ok }),
+              now,
+            );
+            setGuidance((prev) => (prev?.id === current?.id ? prev : current));
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -199,7 +221,7 @@ export default function CameraScreen({ onBack }: Props) {
                 ? GUIDANCE.loading
                 : model === "error"
                   ? GUIDANCE.offline
-                  : GUIDANCE.cameraReady
+                  : guidance
             }
           />
         </>
