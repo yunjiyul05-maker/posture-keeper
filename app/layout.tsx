@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "자세지킴",
+  title: "자세지키미",
   description: "스마트폰 카메라로 스쿼트 자세를 기기 안에서 바로 알려 드려요.",
 };
 

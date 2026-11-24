@@ -22,7 +22,7 @@ export default function DisclaimerScreen({ onStart }: Props) {
 
   return (
     <section className="flex flex-col gap-5">
-      <h1 className="large-title px-1">자세지킴</h1>
+      <h1 className="large-title px-1">자세지키미</h1>
 
       {/* 의료 면책: 진단·치료를 하지 않고, 통증이 있으면 멈추고 상담하라고만 안내한다 */}
       <p className="callout p-5 text-xl font-semibold leading-relaxed">

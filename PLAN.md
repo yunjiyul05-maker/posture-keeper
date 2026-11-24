@@ -1,4 +1,4 @@
-# 자세지킴 계획서 (PLAN)
+# 자세지키미 계획서 (PLAN)
 
 - **근거 문서**: [PRD.md](PRD.md)
 - **다음 문서**: [DESIGN.md](DESIGN.md)
