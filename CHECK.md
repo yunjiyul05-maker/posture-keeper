@@ -3,8 +3,8 @@
 **판정: ❌ 실패** (성공 기준 11개 중 9개 충족, 2개 미충족)
 
 - 점검일: 2026-11-24
-- 점검한 코드: `main` `f978a57`
-- 자동 검증: `npm run lint` 오류 0 · `npm test` 56개 통과 · `npm run build` 성공 · `npm run check:privacy` 통과 · `npm audit --omit=dev` 취약점 0건
+- 점검한 코드: GitHub `main` 최신(AI 격려 한마디 추가 후)
+- 자동 검증: `npm run lint` 오류 0 · `npm test` 65개 통과 · `npm run build` 성공 · `npm run check:privacy` 통과 · `npm audit --omit=dev` 취약점 0건
 - 실패 이유: 사람이 해야 하는 시험(판정 일치율, 사용 편의)이 남았다. 코드로 확인할 수 있는 부분의 결함은 없다.
 - 참고: 연습용으로 적었던 가상 시험 수치는 지웠다. TEST-LOG.md는 비어 있는 시험 양식이다.
 
