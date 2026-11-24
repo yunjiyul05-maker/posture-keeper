@@ -1,7 +1,8 @@
 "use client";
 
 // Design Ref: §2.4 — ③ 운동 화면. 위쪽 큰 카메라 영상(+뼈대), 아래 안내 문구 1개, "운동 끝내기"는 항상 보인다.
-// 운동이 끝나면(끝내기·앱 화면이 가려짐) onEnd가 카메라를 즉시 끄고 ①로 돌아간다. (PRD: 운동 중에만 카메라 사용)
+// 운동이 끝나면 카메라를 즉시 끈다. (PRD: 운동 중에만 카메라 사용)
+// "운동 끝내기" → onFinish(④ 축하 화면), 앱 화면이 가려짐 → onEnd(축하 없이 ①로).
 // 교정(10번)·위험(11번) 판정은 usePoseTracking이 이 화면에서만 돌린다.
 import { useEffect, useRef, useState } from "react";
 import CameraView from "@/components/CameraView";
@@ -16,11 +17,13 @@ import {
 type Props = {
   /** ②에서 넘겨받은 켜진 카메라 */
   stream: MediaStream;
-  /** 운동 끝 → ①로 */
+  /** 앱 화면이 가려져 운동이 끝남 → 조용히 ①로 */
   onEnd: () => void;
+  /** "운동 끝내기"를 직접 눌러 끝냄 → 축하 화면 */
+  onFinish: () => void;
 };
 
-export default function WorkoutScreen({ stream, onEnd }: Props) {
+export default function WorkoutScreen({ stream, onEnd, onFinish }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // 시작 전 준비 시간: 폰을 세우고 자세를 잡는 동안 5→0초를 센다. 0이 되면 판정을 시작한다.
@@ -97,7 +100,7 @@ export default function WorkoutScreen({ stream, onEnd }: Props) {
         )}
         <button
           type="button"
-          onClick={onEnd}
+          onClick={onFinish}
           className="btn-glass min-h-16 rounded-2xl px-6 text-2xl font-bold enabled:active:scale-[0.98]"
         >
           운동 끝내기
