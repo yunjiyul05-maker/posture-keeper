@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 자세지킴
 
-## Getting Started
+스마트폰·노트북 카메라로 **스쿼트 자세를 기기 안에서 실시간으로 분석**해, 잘못된 자세는 교정 안내를 하고 위험한 동작은 경고·중단을 안내하는 웹앱입니다. 혼자 운동하는 고령층(60대 이상)을 주 사용자로 삼았습니다.
 
-First, run the development server:
+> ⚠️ 이 앱은 의료기기가 아니며 진단·치료를 하지 않습니다. 통증이 있으면 운동을 멈추고 전문가와 상담하세요.
+
+## 핵심 기능
+
+- **실시간 자세 교정 안내**: 무릎이 발끝보다 앞으로 나가면 "무릎을 뒤로 빼세요"처럼 한 번에 한 문장(20자 이내)으로 알려 줍니다. 같은 안내는 3초 안에 반복하지 않습니다.
+- **위험 동작 경고**: 위험한 자세가 0.3초 이상 이어지면 경고음과 함께 빨간 화면 "잠시 멈추세요"를 보여 줍니다.
+- **판정을 멈추는 경우**: 몸이 다 안 보이면 "몸이 다 보이게 서 주세요", 어두우면 "밝은 곳에서 해 주세요"라고 안내하고 판정하지 않습니다.
+- **사용하기 쉬운 화면**: 큰 글씨, 시작 전 의료 면책 확인, 5초 준비 카운트다운, 운동을 끝내면 축하 화면.
+
+## 개인정보
+
+- 카메라 영상은 **저장·녹화·서버 전송을 하지 않습니다.** 브라우저 안에서 관절 좌표만 계산하고 바로 버립니다.
+- 로그인·계정·운동 기록이 없습니다.
+- 카메라는 사용자가 허용한 경우에만 켜지고, 운동을 끝내거나 앱 화면이 가려지면 즉시 꺼집니다.
+- 보안 헤더(CSP)로 앱의 연결을 같은 사이트로만 제한합니다. 자세 인식 라이브러리가 구글 사용 통계 서버로 기록을 보내려는 코드를 갖고 있는데, 이 설정이 그 전송을 막습니다. `npm run check:privacy`가 이 설정을 점검합니다.
+
+## 기술
+
+- Next.js 16 (App Router, TypeScript, Tailwind CSS 4), React 19
+- [MediaPipe Pose Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/web_js) (`@mediapipe/tasks-vision`) — 브라우저에서 관절 좌표 추출
+- Vitest (규칙 시험), Vercel (배포)
+
+## 직접 실행해 보기
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm test         # 규칙 시험
+npm run build    # 배포용 빌드
+npm run check:privacy   # 서버 전송 0건 점검
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+카메라는 `https` 또는 `localhost`에서만 켜집니다. 폰에서 쓰려면 https 주소(배포본)로 접속하세요. 폰을 **옆에 세워** 몸 전체가 보이게 서야 합니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 한계 (꼭 읽어 주세요)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- 주의(0.15)·위험(0.4)·밝기(60) 기준값은 공개 자료의 정성적 기준을 바탕으로 정한 **초기 추정값**이며, 실제 사람으로 검증하지 않았습니다. 안전을 보장하는 기준이 아닙니다.
+- 판정 일치율·위험 경고 20회·사용 편의 시험 기록(`TEST-LOG.md`)의 수치는 **연습용 가상 기록**이며 실제 측정이 아닙니다.
+- 응답 속도는 자동 시험의 시뮬레이션으로만 확인했고 실제 폰에서는 측정하지 않았습니다.
+- 스쿼트(측면 촬영)만 지원합니다.
 
-## Learn More
+## 문서
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| 문서 | 내용 |
+|---|---|
+| [PRD.md](PRD.md) | 서비스 기획서: 문제 정의, 목표, 기능, 범위, 보안·개인정보 |
+| [PLAN.md](PLAN.md) | 계획서: 성공 기준, 작업 순서, 충족 현황 |
+| [DESIGN.md](DESIGN.md) | 설계서: 화면 구성, 데이터 흐름, 파일 구조 |
+| [CHECK.md](CHECK.md) | 점검 결과: 성공 기준 판정, 보안 점검 |
+| [TEST-LOG.md](TEST-LOG.md) | 시험 기록지 (가상 기록 표시 있음) |
+| [CLAUDE.md](CLAUDE.md) | 개발 작업 규칙 |
