@@ -33,7 +33,7 @@
 | 위험 동작 경고 | 미충족 | 실제 20회 시험 전 (TEST-LOG A항 비어 있음) |
 | 자세 판정 일치율 | 미충족 | 시범 기록 전 (TEST-LOG B항 비어 있음) |
 | 사용 편의 | 미충족 | 시험 사용자 시험 전 (TEST-LOG C항 비어 있음) |
-| 환경 | 미충족 | 폰 시험 전. 배포본은 폰에서 아직 확인하지 않음 (TEST-LOG D항) |
+| 환경 | 충족 | 작성자가 배포본을 iPhone Safari·Android Chrome에서 8개 항목 모두 직접 확인(TEST-LOG D항). 기기·OS 버전은 미기록 |
 | 배포 | 충족 | `npm run lint`·`npm run build` 통과, Vercel 본 배포 완료(https://jase-jikim.vercel.app), GitHub 공개 저장소 |
 
 > 사람·폰이 필요한 시험은 아직 하지 않아 "미충족"이다. 시험 방법과 기록 양식은 TEST-LOG.md에 비워 두었다.
