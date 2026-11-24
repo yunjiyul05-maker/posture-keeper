@@ -76,7 +76,9 @@ if (process.argv.length <= 2) {
   }
   if (hits.size > 0) {
     const config = readFileSync("next.config.ts", "utf8");
-    if (/connect-src 'self'/.test(config)) {
+    // connect-src의 값이 정확히 'self' 하나일 때만 막고 있다고 본다(외부 주소를 덧붙이면 실패)
+    const connect = config.match(/"connect-src ([^"]*)"/);
+    if (connect && connect[1].trim() === "'self'") {
       console.log(`ℹ️ 라이브러리에 외부 전송 코드가 있지만 CSP(connect-src 'self')가 막고 있다:\n   ${[...hits].join("\n   ")}`);
     } else {
       found += 1;
