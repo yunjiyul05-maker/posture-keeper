@@ -22,3 +22,15 @@ export const GUIDANCE = {
   offline: { id: "offline", text: "인터넷을 확인해 주세요", kind: "status" },
   alone: { id: "alone", text: "혼자 찍히게 해 주세요", kind: "status" },
 } as const satisfies Record<string, Guidance>;
+
+/** 운동 시작 전 자세를 잡을 시간(초). 이 동안은 교정·위험 판정을 하지 않는다 */
+export const COUNTDOWN_SECONDS = 5;
+
+/** 카운트다운 안내: "5초 뒤에 시작해요"처럼 남은 초를 알려 준다(20자 이내) */
+export function countdownGuidance(secondsLeft: number): Guidance {
+  return {
+    id: "countdown",
+    text: `${secondsLeft}초 뒤에 시작해요`,
+    kind: "status",
+  };
+}
