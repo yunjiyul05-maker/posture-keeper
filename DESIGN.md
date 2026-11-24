@@ -156,18 +156,20 @@ PRD의 "문장 1개·공백 포함 20자 이내" 규칙을 운동 화면뿐 아�
 
 ### 3.2 서버가 하는 일
 
-화면 파일 제공과 배포뿐이다. 영상·좌표·결과를 받는 API는 만들지 않는다. 모델 파일(wasm·모델)은 같은 사이트의 `public/`에서 제공해, 12번 점검에서 외부로 나가는 요청이 없는지 쉽게 구분한다.
+화면 파일 제공과 배포, 그리고 AI 격려 한마디를 중계하는 `POST /api/cheer` 한 가지다. 이 API는 요청 본문을 읽지 않고, AI 서비스에 고정된 부탁 문장만 보낸다(응답은 `lib/cheer/sanitize.ts`로 검사하고, 실패하면 고정 문구). 영상·좌표·결과를 받는 API는 만들지 않는다. 모델 파일(wasm·모델)은 같은 사이트의 `public/`에서 제공해, 12번 점검에서 외부로 나가는 요청이 없는지 쉽게 구분한다.
 
 ## 4. 파일 구조 (Next.js 기본)
 
 ```
 app/
   layout.tsx            앱 공통 틀, 큰 글씨 기본값
-  page.tsx              화면 ①~③ 전환과 종료 동작
+  page.tsx              화면 ①~④ 전환과 종료 동작
+  api/cheer/route.ts    AI 격려 한마디 중계(POST, 본문 없음, 키는 서버에서만)
 components/
   DisclaimerScreen.tsx  ① 시작 전 안내
   CameraScreen.tsx      ② 카메라 준비·권한 안내
-  WorkoutScreen.tsx     ③ 운동 화면
+  WorkoutScreen.tsx     ③ 운동 화면(시작 전 5초 카운트다운)
+  FinishScreen.tsx      ④ 운동 끝 축하 화면(색종이, AI 한마디)
   CameraView.tsx        카메라 영상 + 뼈대(거울 표시)
   GuidanceBanner.tsx    안내 문구·경고 표시
 hooks/
@@ -185,6 +187,7 @@ lib/
   feedback/assess.ts    상황에 맞는 안내 후보 고르기(위험·어두움·몸 안 보임 순)
   feedback/selector.ts  안내 1개 고르기·3초 반복 방지·위험 우선
   audio/beep.ts         경고음
+  cheer/sanitize.ts     AI 문구 검사(한 줄·길이·금지어·고정 문구)
 public/models/          MediaPipe 모델 파일
 public/mediapipe/       MediaPipe 실행(wasm) 파일(설치 때 복사, git 제외)
 scripts/                wasm 복사, 서버 전송 코드 점검(npm run check:privacy)

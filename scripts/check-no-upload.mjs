@@ -18,7 +18,19 @@ const PATTERNS = [
   [/\.toDataURL\s*\(|\.toBlob\s*\(/, "캔버스 이미지 추출"],
   [/\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b/, "브라우저 저장소"],
   [/https?:\/\/(?!localhost)/, "외부 주소(http/https)"],
+  // 사용자 데이터를 실어 보낼 수 있는 통로: 요청 본문을 읽거나 본문을 담아 보내는 코드
+  [/\bawait\s+request\.(json|text|formData|arrayBuffer|blob)\s*\(/, "요청 본문 읽기"],
+  [/\bbody\s*:/, "요청 본문 전송"],
 ];
+
+// 예외(좁게 허용): AI 격려 한마디 기능은 사용자 데이터 없이 고정된 부탁 문장만 보낸다.
+// - 브라우저: 같은 사이트의 /api/cheer로 본문 없이 POST (components/FinishScreen.tsx)
+// - 서버: app/api/cheer/route.ts만 AI 서비스로 고정 문장을 보낼 수 있다. 요청 본문은 읽지 않는다.
+// 이 두 곳 말고는 어디서도 fetch·외부 주소·본문 전송이 있으면 실패한다.
+const ALLOWED_LINE = [/fetch\(\s*"\/api\/cheer"\s*,\s*\{\s*method:\s*"POST"/];
+const ALLOWED_FILE = {
+  "app/api/cheer/route.ts": new Set(["fetch 호출", "외부 주소(http/https)", "요청 본문 전송"]),
+};
 
 function* walk(dir) {
   for (const name of readdirSync(dir)) {
@@ -37,6 +49,8 @@ for (const root of ROOTS) {
       if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
       for (const [re, label] of PATTERNS) {
         if (re.test(line)) {
+          if (ALLOWED_FILE[file]?.has(label)) continue; // 서버 AI 경로(요청 본문 읽기는 허용되지 않는다)
+          if (label === "fetch 호출" && ALLOWED_LINE.some((a) => a.test(line))) continue;
           found += 1;
           console.log(`❌ ${file}:${i + 1}  ${label}\n   ${line.trim()}`);
         }

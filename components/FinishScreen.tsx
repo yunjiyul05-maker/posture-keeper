@@ -2,6 +2,11 @@
 
 // ④ 운동 끝 화면: 수고했다는 축하 문구와 색종이. 카메라는 이미 꺼진 상태다(PRD: 운동 중에만 카메라 사용).
 // 운동 기록·통계는 만들지 않으므로 횟수나 점수는 보여 주지 않는다(PRD 6장).
+// 생성형 AI는 여기 "격려 한마디"에만 쓴다. 사용자 데이터는 보내지 않고(요청 본문 없음),
+// 실패하거나 느리면 문구 없이 평소 화면 그대로 보여 준다.
+import { useEffect, useState } from "react";
+
+type Cheer = { message: string; source: "ai" | "fallback" };
 
 type Props = {
   /** "처음으로" 버튼 */
@@ -31,6 +36,27 @@ const pieces = Array.from({ length: PIECES }, (_, i) => {
 });
 
 export default function FinishScreen({ onHome }: Props) {
+  const [cheer, setCheer] = useState<Cheer | null>(null);
+
+  // 화면이 뜨면 AI 한마디를 한 번 받아 온다(5초 안에 못 받으면 포기)
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    fetch("/api/cheer", { method: "POST", signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: Cheer | null) => {
+        if (data && typeof data.message === "string") setCheer(data);
+      })
+      .catch(() => {
+        // 실패하면 아무것도 보이지 않는다(평소 화면 그대로)
+      })
+      .finally(() => clearTimeout(timer));
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, []);
+
   return (
     <section className="flex flex-col gap-5" aria-live="polite">
       {/* 색종이는 장식이라 스크린리더에서는 숨긴다. 화면 전체 위로 터지고, 눌림은 막지 않는다 */}
@@ -65,6 +91,21 @@ export default function FinishScreen({ onHome }: Props) {
           오늘도 몸을 챙기셨네요.
         </p>
         <p className="text-xl leading-relaxed">카메라는 꺼졌어요.</p>
+        {/* AI 한마디: 자리를 미리 잡아 두어 늦게 떠도 화면이 튀지 않게 한다 */}
+        <div className="mt-2 min-h-[4.5rem]">
+          {cheer && (
+            <>
+              <p className="text-2xl font-bold leading-snug text-[#0a4fb8]">
+                {cheer.message}
+              </p>
+              {cheer.source === "ai" && (
+                <p className="mt-1 text-base font-semibold text-[#44546e]">
+                  ✨ AI가 쓴 한마디
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <button
