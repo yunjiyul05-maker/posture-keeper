@@ -45,6 +45,46 @@ for (const root of ROOTS) {
   }
 }
 
+// ── 빌드 결과·라이브러리 점검 (보안 점검 SEC-003) ──
+// 앱 코드가 깨끗해도 라이브러리(MediaPipe 등) 안에 외부로 보내는 코드가 있을 수 있다.
+// 1) 실제 데이터 전송 주소로 쓰이는 알려진 외부 서버가 빌드 결과에 있는지 찾고,
+// 2) 있으면 next.config.ts의 CSP가 외부 연결(connect-src 'self')을 막고 있는지 확인한다.
+// 인자로 폴더를 준 경우(점검 도구 시험용)에는 건너뛴다.
+if (process.argv.length <= 2) {
+  const BUILD_ROOTS = [".next/static", "public/mediapipe"].filter((d) => {
+    try {
+      return statSync(d).isDirectory();
+    } catch {
+      return false;
+    }
+  });
+  // 전송용으로 알려진 외부 서버(문서 링크와 구분하기 위해 목록으로 관리한다)
+  const KNOWN_SENDERS = ["odml.pa.googleapis.com"];
+  const hits = new Set();
+  function* walkAll(dir) {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) yield* walkAll(path);
+      else if (/\.(js|mjs)$/.test(name)) yield path;
+    }
+  }
+  for (const root of BUILD_ROOTS) {
+    for (const file of walkAll(root)) {
+      const text = readFileSync(file, "utf8");
+      for (const host of KNOWN_SENDERS) if (text.includes(host)) hits.add(`${host} (${file})`);
+    }
+  }
+  if (hits.size > 0) {
+    const config = readFileSync("next.config.ts", "utf8");
+    if (/connect-src 'self'/.test(config)) {
+      console.log(`ℹ️ 라이브러리에 외부 전송 코드가 있지만 CSP(connect-src 'self')가 막고 있다:\n   ${[...hits].join("\n   ")}`);
+    } else {
+      found += 1;
+      console.log(`❌ 라이브러리에 외부 전송 코드가 있는데 막는 설정이 없다:\n   ${[...hits].join("\n   ")}`);
+    }
+  }
+}
+
 if (found === 0) {
   console.log("✅ 서버 전송 코드 없음: 네트워크 전송·녹화·저장소·외부 주소 사용 0건");
 } else {
