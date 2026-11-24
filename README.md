@@ -75,6 +75,10 @@ npm run check:privacy   # 서버 전송 0건 점검
 - 응답 속도는 자동 시험의 시뮬레이션으로만 확인했고 실제 폰에서는 측정하지 않았습니다.
 - 스쿼트(측면 촬영)만 지원합니다.
 
+## 라이선스
+
+[MIT License](LICENSE). 자세 인식 라이브러리(MediaPipe `@mediapipe/tasks-vision`)는 Apache-2.0이고, `public/models/`의 모델 파일은 제공처(Google MediaPipe)의 이용 조건을 따릅니다. 이 앱은 의료기기가 아니며 안전을 보장하지 않습니다.
+
 ## 문서
 
 | 문서 | 내용 |
